@@ -19,6 +19,7 @@ export function useWakeLock(enabled: boolean) {
     video.setAttribute('playsinline', '');
     video.setAttribute('muted', '');
     video.setAttribute('loop', '');
+    video.setAttribute('controls', '');
     video.muted = true;
     video.loop = true;
     video.src = NO_SLEEP_VIDEO_SRC;
