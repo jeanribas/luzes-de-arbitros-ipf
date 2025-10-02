@@ -147,7 +147,7 @@ export default function DisplayPage() {
           </button>
         </div>
 
-        {intervalVisible ? (
+        {intervalVisible && state ? (
           <div className="flex flex-1 items-center justify-center">
             <div style={zoomStyle}>
               <IntervalFull

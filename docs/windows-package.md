@@ -9,7 +9,7 @@ Este repositório inclui um script que monta um pacote "portable" contendo:
 
 ## Pré-requisitos
 
-- Node.js 18+ instalado na máquina onde o pacote será gerado (macOS/Linux funciona bem).
+- **Node.js 18+** instalado na máquina onde o pacote será gerado (Next.js exige >= 18.17). Se estiver usando Windows apenas para empacotar, instale o "Current" diretamente do site do Node ou use a versão portable.
 - `npm` disponível no PATH.
 - (Opcional) `zip` caso queira compactar o resultado ao final.
 

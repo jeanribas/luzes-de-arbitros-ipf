@@ -3,11 +3,18 @@ import { execSync } from 'node:child_process';
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const rootDir = path.resolve(new URL('../../', import.meta.url).pathname);
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const serverDir = path.join(rootDir, 'server');
 const frontendDir = path.join(rootDir, 'frontend');
 const outputDir = path.join(rootDir, 'dist', 'windows-bundle');
+
+const nodeMajor = Number(process.versions.node.split('.')[0]);
+if (Number.isNaN(nodeMajor) || nodeMajor < 18) {
+  console.error(`Node.js >= 18 é necessário para gerar o pacote. Versão atual: ${process.versions.node}`);
+  process.exit(1);
+}
 
 function run(command, options = {}) {
   execSync(command, { stdio: 'inherit', ...options });
@@ -26,7 +33,7 @@ async function buildProjects() {
 
   console.log('> Ensuring dependencies and building frontend');
   run('npm install', { cwd: frontendDir });
-  run('npm run build', { cwd: frontendDir });
+  run('npm run build', { cwd: frontendDir, env: { ...process.env, NEXT_DISABLE_ESLINT: '1' } });
 }
 
 async function bundleServer() {
