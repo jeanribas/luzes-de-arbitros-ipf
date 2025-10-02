@@ -49,3 +49,4 @@ Aponte o navegador para `http://localhost:3000` nas rotas desejadas.
 ## Deploy
 - **Server**: qualquer ambiente Node 18+ (ex.: EasyPanel). Basta `npm run build` e `npm start`.
 - **Frontend**: Vercel ou semelhante. Configure `NEXT_PUBLIC_WS_URL` apontando para o domínio do servidor.
+- **Pacote Windows**: há um script que gera um bundle portátil (backend + frontend + scripts) em `dist/windows-bundle`. Veja [docs/windows-package.md](docs/windows-package.md).
