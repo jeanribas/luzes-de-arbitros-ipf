@@ -37,20 +37,38 @@ function RefereeView({ judge }: { judge: Judge }) {
 
   const vibrate = useHapticFeedback();
 
+  const vote = state?.votes[judge] ?? null;
+  const cards = state?.cards[judge] ?? [];
+
   const handleValid = useCallback(() => {
     vibrate();
+    if (vote === 'white') {
+      sendVote(null);
+      sendCard(null);
+      return;
+    }
     sendVote('white');
-  }, [sendVote, vibrate]);
+    sendCard(null);
+  }, [cards.length, sendCard, sendVote, vibrate, vote]);
 
   const toggleCard = useCallback(
     (card: Exclude<CardValue, null>) => {
       vibrate();
       const currentCards = state?.cards[judge] ?? [];
       const isActive = currentCards.includes(card);
-      sendVote('red');
-      sendCard(isActive ? null : card);
+      if (isActive) {
+        sendCard(card);
+        if (currentCards.length <= 1) {
+          sendVote(null);
+        }
+        return;
+      }
+      if (vote !== 'red') {
+        sendVote('red');
+      }
+      sendCard(card);
     },
-    [judge, sendCard, sendVote, state?.cards, vibrate]
+    [judge, sendCard, sendVote, state?.cards, vibrate, vote]
   );
 
   const handleStart = useCallback(() => {
@@ -67,9 +85,6 @@ function RefereeView({ judge }: { judge: Judge }) {
     vibrate();
     timerReset();
   }, [timerReset, vibrate]);
-
-  const vote = state?.votes[judge] ?? null;
-  const cards = state?.cards[judge] ?? [];
 
   return (
     <>

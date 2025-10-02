@@ -72,10 +72,10 @@ export function getState(): AppState {
   };
 }
 
-export function setVote(judge: Judge, vote: Exclude<VoteValue, null>) {
+export function setVote(judge: Judge, vote: VoteValue) {
   if (state.phase === 'revealed') return;
   state.votes[judge] = vote;
-  if (vote === 'white') {
+  if (vote !== 'red') {
     state.cards[judge] = [];
   }
   notify();

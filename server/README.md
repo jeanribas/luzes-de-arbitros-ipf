@@ -22,7 +22,7 @@ npm start       # usa dist/index.js
 Todas as conexões compartilham o mesmo estado. Eventos disponíveis:
 
 - `client:register` `{ role: 'admin'|'display'|'left'|'center'|'right' }`
-- `ref:vote` `{ vote: 'white'|'red' }`
+- `ref:vote` `{ vote: 'white'|'red'|null }`
 - `ref:card` `{ card: 1|2|3|null }`
 - `admin:ready` (limpa votos/timer)
 - `admin:release` (força exibição imediata)

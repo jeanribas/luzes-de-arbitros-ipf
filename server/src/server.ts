@@ -6,6 +6,7 @@ import { config } from './config.js';
 import {
   CardValue,
   Judge,
+  VoteValue,
   clearDecision,
   getState,
   releaseDecision,
@@ -38,7 +39,7 @@ type RegistrationPayload = {
 };
 
 type VotePayload = {
-  vote: 'white' | 'red';
+  vote: VoteValue;
 };
 
 type CardPayload = {

@@ -9,7 +9,7 @@ type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 interface UseRoomSocketResult {
   status: ConnectionStatus;
   state: AppState | null;
-  sendVote: (vote: Exclude<VoteValue, null>) => void;
+  sendVote: (vote: VoteValue) => void;
   sendCard: (card: CardValue) => void;
   ready: () => void;
   release: () => void;
@@ -73,7 +73,7 @@ export function useRoomSocket(role: ClientRole): UseRoomSocketResult {
     };
   }, []);
 
-  const sendVote = (vote: Exclude<VoteValue, null>) => {
+  const sendVote = (vote: VoteValue) => {
     send('ref:vote', { vote });
   };
 
