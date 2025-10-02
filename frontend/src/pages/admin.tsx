@@ -12,6 +12,16 @@ interface AdminPageProps {
   networkIps: string[];
 }
 
+const previewLayout = {
+  gapClass: 'gap-0',
+  lights: { scale: 0.7, maxWidth: 'min(88vw, 1200px)' },
+  timer: {
+    scale: 0.78,
+    maxWidth: 'min(88vw, 960px)',
+    translateX: 'calc(-1 * min(5vw, 80px))'
+  }
+} as const;
+
 export default function AdminPage({ networkIps }: AdminPageProps) {
   const [customMinutes, setCustomMinutes] = useState(1);
   const [intervalHours, setIntervalHours] = useState(0);
@@ -80,6 +90,27 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
   const intervalConfiguredDisplay = useMemo(
     () => formatHMS(state?.intervalConfiguredMs ?? 0),
     [state?.intervalConfiguredMs]
+  );
+
+  const lightsPreviewStyle = useMemo(
+    () => ({
+      transform: `scale(${previewLayout.lights.scale})`,
+      transformOrigin: 'top center',
+      maxWidth: previewLayout.lights.maxWidth,
+      margin: '0 auto',
+      display: 'inline-block'
+    }),
+    []
+  );
+
+  const timerPreviewStyle = useMemo(
+    () => ({
+      transform: `translateX(${previewLayout.timer.translateX}) scale(${previewLayout.timer.scale})`,
+      transformOrigin: 'top center',
+      maxWidth: previewLayout.timer.maxWidth,
+      display: 'inline-block'
+    }),
+    []
   );
 
   return (
@@ -195,8 +226,22 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
 
           <section className="relative flex min-h-[60vh] flex-col items-center justify-center rounded-3xl border border-slate-800 bg-[#0B1019] p-6 shadow-2xl">
             {state ? (
-              <div className="scale-[0.65] origin-top md:scale-75">
-                <DecisionLights state={state} />
+              <div className={`flex w-full flex-1 flex-col items-center justify-center ${previewLayout.gapClass}`}>
+                <div className="flex w-full justify-center">
+                  <div style={lightsPreviewStyle}>
+                    <DecisionLights state={state} showLightPlaceholders={false} forceConnectedPlaceholders />
+                  </div>
+                </div>
+                <div className="flex w-full justify-center">
+                  <div style={timerPreviewStyle} className="flex flex-col items-center gap-6 mx-auto">
+                    <TimerDisplay
+                      variant="display"
+                      remainingMs={state.timerMs}
+                      running={state.running}
+                      phase={state.phase}
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <p className="text-sm text-slate-400">Waiting for state…</p>
