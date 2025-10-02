@@ -27,25 +27,13 @@ function RefereeView({ judge }: { judge: Judge }) {
   const { state, status, sendVote, sendCard, timerStart, timerStop, timerReset } = useRoomSocket(judge);
   const isCenter = judge === 'center';
   const timerSeconds = useMemo(() => Math.round((state?.timerMs ?? 0) / 1000), [state?.timerMs]);
-  const storageKey = `refKeepAwake-${judge}`;
-  const [keepAwake, setKeepAwake] = useState(true);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem(storageKey);
-    if (stored === 'false') {
-      setKeepAwake(false);
-    }
     setHydrated(true);
-  }, [storageKey]);
+  }, []);
 
-  useEffect(() => {
-    if (!hydrated || typeof window === 'undefined') return;
-    window.localStorage.setItem(storageKey, keepAwake ? 'true' : 'false');
-  }, [keepAwake, hydrated, storageKey]);
-
-  const wakeActive = useWakeLock(hydrated && keepAwake);
+  useWakeLock(hydrated);
 
   const vibrate = useHapticFeedback();
 
@@ -80,11 +68,6 @@ function RefereeView({ judge }: { judge: Judge }) {
     timerReset();
   }, [timerReset, vibrate]);
 
-  const handleToggleWake = useCallback(() => {
-    vibrate();
-    setKeepAwake((prev) => !prev);
-  }, [vibrate]);
-
   const vote = state?.votes[judge] ?? null;
   const cards = state?.cards[judge] ?? [];
 
@@ -105,9 +88,6 @@ function RefereeView({ judge }: { judge: Judge }) {
           onReset={handleReset}
           onValid={handleValid}
           onToggleCard={toggleCard}
-          keepAwake={keepAwake}
-          onToggleWake={handleToggleWake}
-          wakeActive={wakeActive}
         />
       ) : (
         <SideLayout
@@ -117,9 +97,6 @@ function RefereeView({ judge }: { judge: Judge }) {
           cards={cards}
           onValid={handleValid}
           onToggleCard={toggleCard}
-          keepAwake={keepAwake}
-          onToggleWake={handleToggleWake}
-          wakeActive={wakeActive}
         />
       )}
     </>
@@ -137,9 +114,6 @@ function CenterLayout(props: {
   onReset: () => void;
   onValid: () => void;
   onToggleCard: (card: Exclude<CardValue, null>) => void;
-  keepAwake: boolean;
-  onToggleWake: () => void;
-  wakeActive: boolean;
 }) {
   const {
     status,
@@ -151,10 +125,7 @@ function CenterLayout(props: {
     onPause,
     onReset,
     onValid,
-    onToggleCard,
-    keepAwake,
-    onToggleWake,
-    wakeActive
+    onToggleCard
   } = props;
   const isValidActive = vote === 'white';
   const isPaused = !running;
@@ -164,18 +135,6 @@ function CenterLayout(props: {
       <header className="flex flex-col items-center gap-1 text-xs uppercase tracking-[0.5em] text-slate-400">
         <span>Árbitro Central</span>
         <span>Status: {status}</span>
-        <button
-          type="button"
-          onClick={onToggleWake}
-          className="mt-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/20"
-        >
-          Tela ativa: {keepAwake ? 'ON' : 'OFF'}
-        </button>
-        {!wakeActive && keepAwake && (
-          <span className="text-[10px] text-amber-300">
-            Toque na tela ou tente novamente para evitar o bloqueio automático.
-          </span>
-        )}
       </header>
 
       <section className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-[#1F232A] p-5 shadow-xl">
@@ -245,11 +204,8 @@ function SideLayout(props: {
   cards: CardValue[];
   onValid: () => void;
   onToggleCard: (card: Exclude<CardValue, null>) => void;
-  keepAwake: boolean;
-  onToggleWake: () => void;
-  wakeActive: boolean;
 }) {
-  const { judge, status, vote, cards, onValid, onToggleCard, keepAwake, onToggleWake, wakeActive } = props;
+  const { judge, status, vote, cards, onValid, onToggleCard } = props;
   const isValidActive = vote === 'white';
   const sideLabel = judge === 'left' ? 'Árbitro Lateral Esquerdo' : 'Árbitro Lateral Direito';
 
@@ -258,18 +214,6 @@ function SideLayout(props: {
       <header className="flex flex-col items-center gap-1 text-center text-xs uppercase tracking-[0.4em] text-slate-400">
         <span>{sideLabel}</span>
         <span>Status: {status}</span>
-        <button
-          type="button"
-          onClick={onToggleWake}
-          className="mt-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/20"
-        >
-          Tela ativa: {keepAwake ? 'ON' : 'OFF'}
-        </button>
-        {!wakeActive && keepAwake && (
-          <span className="text-[10px] text-amber-300">
-            Toque na tela ou tente novamente para evitar o bloqueio automático.
-          </span>
-        )}
       </header>
 
       <section className="flex flex-col gap-4">
