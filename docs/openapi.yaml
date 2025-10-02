@@ -1,0 +1,199 @@
+openapi: 3.1.0
+info:
+  title: Luzes Árbitros API
+  version: 0.1.0
+  description: REST setup endpoints for referee light rooms.
+servers:
+  - url: https://api.example.com
+paths:
+  /rooms:
+    post:
+      summary: Create new platform room
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roomId:
+                  type: string
+                  pattern: '^[A-Z0-9-]{3,8}$'
+                pin:
+                  type: string
+                  pattern: '^[0-9]{4}$'
+                config:
+                  $ref: '#/components/schemas/RoomConfigPartial'
+                webhookUrl:
+                  type: string
+                  format: uri
+      responses:
+        '201':
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomCreationResponse'
+        '409':
+          description: Room already exists
+  /rooms/{roomId}/close:
+    post:
+      summary: Close room
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminPinRequest'
+      responses:
+        '204':
+          description: Room closed
+        '401':
+          description: Invalid PIN
+        '404':
+          description: Room not found
+  /rooms/{roomId}/reset:
+    post:
+      summary: Reset decision and timer
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminPinRequest'
+      responses:
+        '200':
+          description: Reset applied
+  /rooms/{roomId}/timer:
+    post:
+      summary: Control room timer
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              allOf:
+                - $ref: '#/components/schemas/AdminPinRequest'
+              properties:
+                action:
+                  type: string
+                  enum: [start, stop, reset, set]
+                seconds:
+                  type: integer
+                  minimum: 0
+                  maximum: 600
+      responses:
+        '200':
+          description: Timer command accepted
+  /rooms/{roomId}/config:
+    post:
+      summary: Update display config and webhook
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              allOf:
+                - $ref: '#/components/schemas/AdminPinRequest'
+              properties:
+                config:
+                  $ref: '#/components/schemas/RoomConfigPartial'
+                webhookUrl:
+                  type: string
+                  format: uri
+                  nullable: true
+      responses:
+        '200':
+          description: Configuration updated
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        '200':
+          description: Prometheus exposition format
+          content:
+            text/plain:
+              schema:
+                type: string
+  /health:
+    get:
+      summary: Health probe
+      responses:
+        '200':
+          description: Server healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+components:
+  parameters:
+    RoomId:
+      in: path
+      name: roomId
+      required: true
+      schema:
+        type: string
+  schemas:
+    AdminPinRequest:
+      type: object
+      properties:
+        pin:
+          type: string
+          pattern: '^[0-9]{4}$'
+      required: [pin]
+    RoomConfigPartial:
+      type: object
+      properties:
+        showTimer:
+          type: boolean
+        showLogo:
+          type: boolean
+        showQRCodes:
+          type: boolean
+        fullscreenHint:
+          type: boolean
+        autoRelease:
+          type: boolean
+    RoomCreationResponse:
+      type: object
+      properties:
+        roomId:
+          type: string
+        adminPin:
+          type: string
+        joinQRCodes:
+          type: object
+          properties:
+            left:
+              $ref: '#/components/schemas/TokenInfo'
+            center:
+              $ref: '#/components/schemas/TokenInfo'
+            right:
+              $ref: '#/components/schemas/TokenInfo'
+      required: [roomId, adminPin, joinQRCodes]
+    TokenInfo:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: integer
+          description: Epoch seconds
+      required: [token, expiresAt]
