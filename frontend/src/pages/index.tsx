@@ -158,11 +158,15 @@ export default function DisplayPage() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-14">
+          <div className="flex flex-1 flex-col items-center justify-center gap-20">
             <div className="flex w-full justify-center">
               {state ? (
                 <div style={zoomStyle}>
-                  <DecisionLights state={state} />
+                  <DecisionLights
+                    state={state}
+                    showLightPlaceholders={false}
+                    forceConnectedPlaceholders
+                  />
                 </div>
               ) : (
                 <p className="text-sm uppercase tracking-[0.4em] text-slate-400">Waiting for connection…</p>

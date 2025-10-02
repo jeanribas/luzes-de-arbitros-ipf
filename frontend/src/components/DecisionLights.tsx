@@ -10,6 +10,7 @@ interface Props {
   showLightPlaceholders?: boolean;
   showPendingRing?: boolean;
   delayReveal?: boolean;
+  forceConnectedPlaceholders?: boolean;
 }
 
 export function DecisionLights({
@@ -17,7 +18,8 @@ export function DecisionLights({
   showCardPlaceholders = false,
   showLightPlaceholders = true,
   showPendingRing = true,
-  delayReveal = true
+  delayReveal = true,
+  forceConnectedPlaceholders = false
 }: Props) {
   const [delayedVotes, setDelayedVotes] = useState(state.votes);
   const [delayedCards, setDelayedCards] = useState(state.cards);
@@ -55,6 +57,7 @@ export function DecisionLights({
             showCardPlaceholders={showCardPlaceholders}
             showLightPlaceholders={showLightPlaceholders}
             showPendingRing={showPendingRing}
+            forceConnectedPlaceholders={forceConnectedPlaceholders}
           />
         ))}
       </div>
@@ -69,7 +72,8 @@ function JudgeLight({
   revealed,
   showCardPlaceholders,
   showLightPlaceholders,
-  showPendingRing
+  showPendingRing,
+  forceConnectedPlaceholders
 }: {
   connected: boolean;
   vote: VoteValue;
@@ -78,6 +82,7 @@ function JudgeLight({
   showCardPlaceholders: boolean;
   showLightPlaceholders: boolean;
   showPendingRing: boolean;
+  forceConnectedPlaceholders: boolean;
 }) {
   const squareStyle: CSSProperties = {
     width: 'clamp(12.32rem, 24.64vw, 28.16rem)',
@@ -93,9 +98,19 @@ function JudgeLight({
         </div>
       );
     }
+
     return (
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex items-center justify-center rounded-[3rem] bg-[#0F1216]" style={squareStyle} />
+        <div className="relative" style={{ width: squareStyle.width }}>
+          <div className="flex items-center justify-center rounded-[3rem] bg-[#0F1216]" style={squareStyle} />
+          {showCardPlaceholders && (
+            <div className="absolute top-full mt-6 grid w-full grid-cols-3 gap-4 px-4">
+              {[1, 2, 3].map((slot) => (
+                <CardSlot key={`card-placeholder-${slot}`} card={null} showPlaceholder />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -104,12 +119,14 @@ function JudgeLight({
   const hasVote = vote !== null;
   const pending = hasVote && !revealed && showPendingRing;
 
+  const showPlaceholderSquare = showLightPlaceholders || forceConnectedPlaceholders;
+
   const squareClass = clsx(
     'flex items-center justify-center rounded-[3rem] text-center font-bold transition-all duration-200',
     displayVote === 'white' && 'bg-white text-slate-900 shadow-xl',
     displayVote === 'red' && 'bg-red-500 text-white shadow-xl',
     displayVote === null &&
-      (showLightPlaceholders
+      (showPlaceholderSquare
         ? 'bg-[#0F1216] text-transparent shadow-xl'
         : 'bg-transparent text-transparent shadow-none'),
     pending && 'ring-4 ring-slate-500/60'

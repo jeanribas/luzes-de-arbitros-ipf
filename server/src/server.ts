@@ -189,7 +189,8 @@ export async function createServer() {
       ack?.({ ok: true });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason: string) => {
+      app.log.info({ event: 'disconnect', role: socket.data.role, reason });
       const role = socket.data.role;
       if (isJudge(role)) {
         setConnected(role, false);

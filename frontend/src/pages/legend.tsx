@@ -182,7 +182,6 @@ export default function LegendPage() {
                 showCardPlaceholders={showPlaceholders}
                 showLightPlaceholders={showPlaceholders}
                 showPendingRing={false}
-                delayReveal={false}
               />
             </div>
           ) : (
