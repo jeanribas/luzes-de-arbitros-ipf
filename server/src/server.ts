@@ -27,6 +27,7 @@ import {
   stopInterval,
   stopTimer
 } from './state.js';
+import type { AppState } from './state.js';
 
 const ADMIN_ROLE = 'admin';
 const DISPLAY_ROLE = 'display';
@@ -72,7 +73,7 @@ type ClientToServerEvents = {
 };
 
 type ServerToClientEvents = {
-  'state:update': ReturnType<typeof getState>;
+  'state:update': (snapshot: AppState) => void;
 };
 
 type InterServerEvents = Record<string, never>;
@@ -80,6 +81,14 @@ type InterServerEvents = Record<string, never>;
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, ClientData>;
 
 type AppSocketServer = SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, ClientData>;
+
+interface SocketIOPluginOptions {
+  cors?: {
+    origin: string | string[];
+  };
+}
+
+type SocketIOPlugin = FastifyPluginCallback<SocketIOPluginOptions>;
 
 export async function createServer() {
   const app = Fastify({
@@ -92,7 +101,9 @@ export async function createServer() {
     origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(',').map((origin) => origin.trim())
   });
 
-  await app.register(fastifySocketIO as unknown as FastifyPluginCallback, {
+  const socketPlugin = fastifySocketIO as unknown as SocketIOPlugin;
+
+  await app.register(socketPlugin, {
     cors: {
       origin: config.CORS_ORIGIN === '*' ? '*' : config.CORS_ORIGIN.split(',').map((origin) => origin.trim())
     }
