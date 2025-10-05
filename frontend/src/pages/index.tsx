@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 
 import { DecisionLights } from '@/components/DecisionLights';
 import { FullscreenButton } from '@/components/FullscreenButton';
@@ -86,52 +87,66 @@ export default function DisplayPage() {
       <main className="relative flex min-h-screen flex-col bg-black px-6 py-12 text-white">
         <div className="fixed bottom-6 left-6 z-30 flex flex-col items-start gap-3" ref={menuRef}>
           {menuOpen && (
-            <div className="w-56 rounded-3xl border border-white/10 bg-[#1F232A]/95 p-4 shadow-2xl backdrop-blur">
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">Opções</h2>
-              <FullscreenButton />
-              <div className="mt-4 flex flex-col gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
-                  Zoom ({zoomLabel})
-                </span>
-                <div className="flex items-center gap-2 text-base">
+            <div className="w-64 rounded-3xl border border-white/10 bg-[#141820]/95 p-5 shadow-2xl backdrop-blur">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-200">Opções</h2>
+              <div className="mt-4 flex flex-col gap-5">
+                <section className="flex flex-col gap-3">
+                  <span className="text-[10px] uppercase tracking-[0.32em] text-slate-400">Ações rápidas</span>
+                  <FullscreenButton className="w-full !rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/25" />
+                  <Link
+                    href="/admin"
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/25"
+                  >
+                    Ir para Admin
+                  </Link>
+                </section>
+
+                <section className="flex flex-col gap-3 border-t border-white/10 pt-4">
+                  <span className="text-[10px] uppercase tracking-[0.32em] text-slate-400">Zoom ({zoomLabel})</span>
+                  <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-2">
+                    <button
+                      type="button"
+                      onClick={decreaseZoom}
+                      className="flex h-10 items-center justify-center rounded-lg bg-white/15 text-lg font-semibold text-white transition hover:bg-white/25"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetZoom}
+                      className="flex h-10 items-center justify-center rounded-lg bg-white/15 text-[10px] font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/25"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={increaseZoom}
+                      className="flex h-10 items-center justify-center rounded-lg bg-white/15 text-lg font-semibold text-white transition hover:bg-white/25"
+                    >
+                      +
+                    </button>
+                  </div>
+                </section>
+
+                <section className="flex flex-col gap-3 border-t border-white/10 pt-4">
+                  <span className="text-[10px] uppercase tracking-[0.32em] text-slate-400">Tela ativa</span>
                   <button
                     type="button"
-                    onClick={decreaseZoom}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-lg font-semibold text-white transition hover:bg-white/25"
+                    onClick={() => setKeepAwake((prev) => !prev)}
+                    className="flex items-center justify-between rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/25"
                   >
-                    −
+                    <span>Manter tela ativa</span>
+                    <span className="text-xs">{keepAwake ? 'ON' : 'OFF'}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={resetZoom}
-                    className="flex flex-1 items-center justify-center rounded-lg bg-white/15 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/25"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="button"
-                    onClick={increaseZoom}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-lg font-semibold text-white transition hover:bg-white/25"
-                  >
-                    +
-                  </button>
+                  {!wakeActive && keepAwake && (
+                    <span className="text-[10px] text-amber-300">
+                      Não foi possível ativar o modo sem descanso. Toque na tela ou tente novamente.
+                    </span>
+                  )}
+                </section>
               </div>
-              <button
-                type="button"
-                onClick={() => setKeepAwake((prev) => !prev)}
-                className="mt-3 flex items-center justify-between rounded-lg bg-white/15 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/25"
-              >
-                <span>Manter tela ativa</span>
-                <span className="text-xs">{keepAwake ? 'ON' : 'OFF'}</span>
-              </button>
-              {!wakeActive && keepAwake && (
-                <span className="text-[10px] text-amber-300">
-                  Não foi possível ativar o modo sem descanso. Toque na tela ou tente novamente.
-                </span>
-              )}
             </div>
-          </div>
-        )}
+          )}
 
           <button
             type="button"
@@ -158,7 +173,7 @@ export default function DisplayPage() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-20">
+          <div className="flex flex-1 flex-col items-center justify-center gap-48">
             <div className="flex w-full justify-center">
               {state ? (
                 <div style={zoomStyle}>

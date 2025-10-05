@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import type { GetServerSideProps } from 'next';
 import QRCode from 'react-qr-code';
 import { useEffect, useMemo, useState } from 'react';
@@ -119,9 +120,11 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
         <title>Referee Lights · Admin</title>
       </Head>
       <main className="flex min-h-screen flex-col gap-10 bg-slate-950 px-10 py-10 text-slate-100">
-        <header className="flex flex-col gap-2">
+        <header className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">Platform Admin</h1>
-          <span className="text-sm uppercase tracking-[0.35em] text-slate-400">Status: {status}</span>
+          <div className="flex flex-col items-start gap-1 text-sm uppercase tracking-[0.35em] text-slate-400">
+            <span>Status: {status}</span>
+          </div>
         </header>
 
         <section className="grid w-full gap-6 md:grid-cols-[320px_1fr]">
@@ -246,7 +249,7 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
             ) : (
               <p className="text-sm text-slate-400">Waiting for state…</p>
             )}
-            <div className="pointer-events-none absolute bottom-6 right-6 flex flex-col items-end">
+            <div className="pointer-events-none absolute bottom-6 right-6 flex flex-row items-center gap-3">
               <button
                 type="button"
                 onClick={() => setQrMenuOpen(true)}
@@ -254,6 +257,12 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
               >
                 Mostrar QR Codes
               </button>
+              <Link
+                href="/"
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/20"
+              >
+                Ir para Display
+              </Link>
             </div>
           </section>
         </section>

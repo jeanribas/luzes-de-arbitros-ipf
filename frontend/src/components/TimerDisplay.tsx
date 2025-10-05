@@ -203,9 +203,9 @@ export function TimerDisplay(props: TimerDisplayProps) {
 export default TimerDisplay;
 
 function CooldownBadge({ value, gradient, size = 'md' }: { value: number; gradient: string; size?: 'sm' | 'md' }) {
-  const height = size === 'sm' ? 'h-[2.6rem]' : 'h-[3rem]';
-  const padding = size === 'sm' ? 'px-3' : 'px-4';
-  const text = size === 'sm' ? 'text-base' : 'text-lg';
+  const height = size === 'sm' ? 'h-[2.6rem]' : 'h-[4rem]';
+  const padding = size === 'sm' ? 'px-3' : 'px-5';
+  const text = size === 'sm' ? 'text-base' : 'text-4xl';
 
   return (
     <span

@@ -1,13 +1,18 @@
 'use client';
 
+import clsx from 'clsx';
 import { useCallback, useEffect, useState } from 'react';
+
+interface FullscreenButtonProps {
+  className?: string;
+}
 
 function isFullscreenActive() {
   if (typeof document === 'undefined') return false;
   return Boolean(document.fullscreenElement);
 }
 
-export function FullscreenButton() {
+export function FullscreenButton({ className }: FullscreenButtonProps) {
   const [isActive, setIsActive] = useState(isFullscreenActive());
 
   const toggle = useCallback(async () => {
@@ -29,7 +34,10 @@ export function FullscreenButton() {
   return (
     <button
       onClick={toggle}
-      className="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white backdrop-blur transition hover:bg-white/20"
+      className={clsx(
+        'rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white backdrop-blur transition hover:bg-white/20',
+        className
+      )}
     >
       {isActive ? 'Exit Fullscreen' : 'Enter Fullscreen'}
     </button>

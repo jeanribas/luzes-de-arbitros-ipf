@@ -46,7 +46,7 @@ export function DecisionLights({
 
   return (
     <div className="flex w-full max-w-6xl flex-col items-center gap-10">
-      <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-center sm:gap-16">
+      <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-center sm:gap-32">
         {(Object.keys(state.votes) as Judge[]).map((judge) => (
           <JudgeLight
             key={judge}
