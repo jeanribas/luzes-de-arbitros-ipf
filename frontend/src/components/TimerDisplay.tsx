@@ -117,8 +117,6 @@ export function TimerDisplay(props: TimerDisplayProps) {
       .filter((entry) => entry.value > 0);
   }, [cooldownEntries, now, variant]);
 
-  if (hidden) return null;
-
   const timerText = formatTime(remainingMs);
   const urgency = remainingMs <= 10_000;
   const isZero = remainingMs <= 0;
@@ -165,6 +163,8 @@ export function TimerDisplay(props: TimerDisplayProps) {
       }
     };
   }, []);
+
+  if (hidden) return null;
 
   if (variant === 'display') {
     return (
