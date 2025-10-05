@@ -1,6 +1,8 @@
 import fastifyCors from '@fastify/cors';
 import Fastify from 'fastify';
+import type { FastifyPluginCallback } from 'fastify';
 import fastifySocketIO from 'fastify-socket.io';
+import type { Server as SocketIOServer, Socket } from 'socket.io';
 
 import { config } from './config.js';
 import {
@@ -58,6 +60,27 @@ type IntervalPayload = {
 
 type AckResponse = { ok: true } | { error: string };
 
+type ClientToServerEvents = {
+  'client:register': (payload: RegistrationPayload) => void;
+  'ref:vote': (payload: VotePayload, ack?: (response: AckResponse) => void) => void;
+  'ref:card': (payload: CardPayload, ack?: (response: AckResponse) => void) => void;
+  'admin:ready': (ack?: (response: AckResponse) => void) => void;
+  'admin:release': (ack?: (response: AckResponse) => void) => void;
+  'admin:clear': (ack?: (response: AckResponse) => void) => void;
+  'timer:command': (payload: TimerPayload, ack?: (response: AckResponse) => void) => void;
+  'interval:command': (payload: IntervalPayload, ack?: (response: AckResponse) => void) => void;
+};
+
+type ServerToClientEvents = {
+  'state:update': ReturnType<typeof getState>;
+};
+
+type InterServerEvents = Record<string, never>;
+
+type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, ClientData>;
+
+type AppSocketServer = SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, ClientData>;
+
 export async function createServer() {
   const app = Fastify({
     logger: {
@@ -69,20 +92,22 @@ export async function createServer() {
     origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(',').map((origin) => origin.trim())
   });
 
-  await app.register(fastifySocketIO as unknown as any, {
+  await app.register(fastifySocketIO as unknown as FastifyPluginCallback, {
     cors: {
       origin: config.CORS_ORIGIN === '*' ? '*' : config.CORS_ORIGIN.split(',').map((origin) => origin.trim())
     }
   });
 
+  const io = app.io as AppSocketServer;
+
   setStateListener((snapshot) => {
-    app.io.emit('state:update', snapshot);
+    io.emit('state:update', snapshot);
   });
 
   app.get('/health', async () => ({ status: 'ok' }));
 
-  app.io.on('connection', (socket: any) => {
-    socket.data = { role: 'viewer' } as ClientData;
+  io.on('connection', (socket: AppSocket) => {
+    socket.data = { role: 'viewer' };
 
     socket.emit('state:update', getState());
 
