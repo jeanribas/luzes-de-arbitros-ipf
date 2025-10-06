@@ -29,22 +29,20 @@ test('platform flow: ready -> votes -> release -> clear', async ({ page, context
   await expect(displayPage.getByText('Live')).toBeVisible({ timeout: 10_000 });
 
   const leftRef = await context.newPage();
-  await leftRef.goto(
-    `/ref?roomId=${payload.roomId}&token=${payload.joinQRCodes.left.token}&role=side_ref_left`
-  );
+  await leftRef.goto(`/ref/left?roomId=${payload.roomId}&token=${payload.joinQRCodes.left.token}`);
   await expect(leftRef.getByText('Referee Console')).toBeVisible();
   await expect(leftRef.getByText('Live')).toBeVisible({ timeout: 10_000 });
 
   const centerRef = await context.newPage();
   await centerRef.goto(
-    `/ref?roomId=${payload.roomId}&token=${payload.joinQRCodes.center.token}&role=chief_ref`
+    `/ref/center?roomId=${payload.roomId}&token=${payload.joinQRCodes.center.token}`
   );
   await expect(centerRef.getByText('Referee Console')).toBeVisible();
   await expect(centerRef.getByText('Live')).toBeVisible({ timeout: 10_000 });
 
   const rightRef = await context.newPage();
   await rightRef.goto(
-    `/ref?roomId=${payload.roomId}&token=${payload.joinQRCodes.right.token}&role=side_ref_right`
+    `/ref/right?roomId=${payload.roomId}&token=${payload.joinQRCodes.right.token}`
   );
   await expect(rightRef.getByText('Referee Console')).toBeVisible();
   await expect(rightRef.getByText('Live')).toBeVisible({ timeout: 10_000 });

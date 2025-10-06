@@ -5,40 +5,35 @@ import fastifySocketIO from 'fastify-socket.io';
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 
 import { config } from './config.js';
+import { RoomManager } from './rooms.js';
 import {
-  CardValue,
-  Judge,
-  VoteValue,
-  clearDecision,
-  getState,
-  releaseDecision,
-  resetTimer,
-  configureInterval,
-  resetInterval,
-  setIntervalVisible,
-  setCard,
-  setConnected,
-  setPhaseReady,
-  setStateListener,
-  setVote,
-  startInterval,
-  startTimer,
-  startTimerWithSeconds,
-  stopInterval,
-  stopTimer
+  RoomState,
+  type AppState,
+  type CardValue,
+  type Judge,
+  type VoteValue
 } from './state.js';
-import type { AppState } from './state.js';
 
-const ADMIN_ROLE = 'admin';
-const DISPLAY_ROLE = 'display';
+type Role = 'admin' | 'display' | Judge | 'viewer';
+
+const ADMIN_ROLE: Role = 'admin';
+const DISPLAY_ROLE: Role = 'display';
+const VIEWER_ROLE: Role = 'viewer';
 const JUDGE_ROLES: Judge[] = ['left', 'center', 'right'];
 
 interface ClientData {
-  role: typeof ADMIN_ROLE | typeof DISPLAY_ROLE | Judge | 'viewer';
+  role: Role;
+  roomId?: string;
+  adminPin?: string;
+  refereeToken?: string;
+  judgeRole?: Judge;
 }
 
 type RegistrationPayload = {
-  role: ClientData['role'];
+  role: Role;
+  roomId: string;
+  pin?: string;
+  token?: string;
 };
 
 type VotePayload = {
@@ -62,7 +57,7 @@ type IntervalPayload = {
 type AckResponse = { ok: true } | { error: string };
 
 type ClientToServerEvents = {
-  'client:register': (payload: RegistrationPayload) => void;
+  'client:register': (payload: RegistrationPayload, ack?: (response: AckResponse) => void) => void;
   'ref:vote': (payload: VotePayload, ack?: (response: AckResponse) => void) => void;
   'ref:card': (payload: CardPayload, ack?: (response: AckResponse) => void) => void;
   'admin:ready': (ack?: (response: AckResponse) => void) => void;
@@ -90,6 +85,24 @@ interface SocketIOPluginOptions {
 
 type SocketIOPlugin = FastifyPluginCallback<SocketIOPluginOptions>;
 
+const ROOM_CHANNEL_PREFIX = 'room:';
+
+function roomChannel(roomId: string) {
+  return `${ROOM_CHANNEL_PREFIX}${roomId}`;
+}
+
+function isAdmin(role: Role): role is typeof ADMIN_ROLE {
+  return role === ADMIN_ROLE;
+}
+
+function isDisplay(role: Role): role is typeof DISPLAY_ROLE {
+  return role === DISPLAY_ROLE;
+}
+
+function isJudge(role: Role): role is Judge {
+  return (JUDGE_ROLES as string[]).includes(role);
+}
+
 export async function createServer() {
   const app = Fastify({
     logger: {
@@ -111,116 +124,234 @@ export async function createServer() {
 
   const io = app.io as AppSocketServer;
 
-  setStateListener((snapshot) => {
-    io.emit('state:update', snapshot);
+  const roomManager = new RoomManager((roomId, snapshot) => {
+    io.to(roomChannel(roomId)).emit('state:update', snapshot);
   });
 
   app.get('/health', async () => ({ status: 'ok' }));
 
+  app.post('/rooms', async (_, reply) => {
+    const data = roomManager.createRoom();
+    reply.code(201);
+    return data;
+  });
+
+  app.post<{
+    Params: { roomId: string };
+    Body: { adminPin?: string };
+  }>('/rooms/:roomId/access', async (request, reply) => {
+    const { roomId } = request.params;
+    const { adminPin } = request.body ?? {};
+
+    const state = roomManager.getRoomState(roomId);
+    if (!state) {
+      reply.code(404);
+      return { error: 'room_not_found' };
+    }
+
+    if (!roomManager.verifyAdminPin(roomId, adminPin)) {
+      reply.code(403);
+      return { error: 'invalid_pin' };
+    }
+
+    const payload = roomManager.getRoomAccess(roomId, adminPin!);
+    if (!payload) {
+      reply.code(500);
+      return { error: 'unknown_error' };
+    }
+
+    return payload;
+  });
+
+  app.post<{
+    Params: { roomId: string };
+    Body: { adminPin?: string };
+  }>('/rooms/:roomId/refresh-ref-tokens', async (request, reply) => {
+    const { roomId } = request.params;
+    const { adminPin } = request.body ?? {};
+
+    const state = roomManager.getRoomState(roomId);
+    if (!state) {
+      reply.code(404);
+      return { error: 'room_not_found' };
+    }
+
+    if (!roomManager.verifyAdminPin(roomId, adminPin)) {
+      reply.code(403);
+      return { error: 'invalid_pin' };
+    }
+
+    const payload = roomManager.rotateRefereeTokens(roomId);
+    if (!payload) {
+      reply.code(500);
+      return { error: 'unknown_error' };
+    }
+
+    return payload;
+  });
+
   io.on('connection', (socket: AppSocket) => {
-    socket.data = { role: 'viewer' };
+    socket.data = { role: VIEWER_ROLE };
 
-    socket.emit('state:update', getState());
+    socket.on('client:register', (payload, ack) => {
+      if (!payload || !payload.roomId || !payload.role) {
+        ack?.({ error: 'invalid_payload' });
+        return;
+      }
 
-    socket.on('client:register', (payload: RegistrationPayload) => {
-      socket.data.role = payload.role;
+      const state = roomManager.getRoomState(payload.roomId);
+      if (!state) {
+        ack?.({ error: 'room_not_found' });
+        return;
+      }
+
+      if (isAdmin(payload.role) || isDisplay(payload.role)) {
+        if (!roomManager.verifyAdminPin(payload.roomId, payload.pin)) {
+          ack?.({ error: 'invalid_pin' });
+          return;
+        }
+      }
+
       if (isJudge(payload.role)) {
-        setConnected(payload.role, true);
+        if (!roomManager.isValidRefToken(payload.roomId, payload.role, payload.token)) {
+          ack?.({ error: 'invalid_token' });
+          return;
+        }
       }
-      socket.emit('state:update', getState());
+
+      if (isJudge(socket.data.role) && socket.data.roomId) {
+        const previousState = roomManager.getRoomState(socket.data.roomId);
+        if (previousState && socket.data.judgeRole) {
+          previousState.setConnected(socket.data.judgeRole, false);
+        }
+      }
+
+      if (socket.data.roomId) {
+        socket.leave(roomChannel(socket.data.roomId));
+      }
+
+      socket.join(roomChannel(payload.roomId));
+      socket.data.role = payload.role;
+      socket.data.roomId = payload.roomId;
+      socket.data.adminPin = payload.pin;
+      socket.data.refereeToken = payload.token;
+      socket.data.judgeRole = isJudge(payload.role) ? payload.role : undefined;
+
+      if (socket.data.judgeRole) {
+        state.setConnected(socket.data.judgeRole, true);
+      }
+
+      ack?.({ ok: true });
+      socket.emit('state:update', state.getSnapshot());
     });
 
-    socket.on('ref:vote', (payload: VotePayload, ack?: (response: AckResponse) => void) => {
-      const judge = socket.data.role;
-      if (!isJudge(judge)) {
-        return ack?.({ error: 'not_authorised' });
+    socket.on('ref:vote', (payload, ack) => {
+      const judgeContext = ensureJudgeContext(socket, roomManager);
+      if (!judgeContext.ok) {
+        ack?.({ error: judgeContext.error });
+        return;
       }
-      setVote(judge, payload.vote);
+      judgeContext.state.setVote(judgeContext.judge, payload.vote);
       ack?.({ ok: true });
     });
 
-    socket.on('ref:card', (payload: CardPayload, ack?: (response: AckResponse) => void) => {
-      const judge = socket.data.role;
-      if (!isJudge(judge)) {
-        return ack?.({ error: 'not_authorised' });
+    socket.on('ref:card', (payload, ack) => {
+      const judgeContext = ensureJudgeContext(socket, roomManager);
+      if (!judgeContext.ok) {
+        ack?.({ error: judgeContext.error });
+        return;
       }
-      setCard(judge, payload.card);
+      judgeContext.state.setCard(judgeContext.judge, payload.card);
       ack?.({ ok: true });
     });
 
-    socket.on('admin:ready', (ack?: (response: AckResponse) => void) => {
-      if (!isAdmin(socket.data.role)) {
-        return ack?.({ error: 'not_authorised' });
+    socket.on('admin:ready', (ack) => {
+      const adminContext = ensureAdminContext(socket, roomManager);
+      if (!adminContext.ok) {
+        ack?.({ error: adminContext.error });
+        return;
       }
-      setPhaseReady();
+      adminContext.state.setPhaseReady();
       ack?.({ ok: true });
     });
 
-    socket.on('admin:release', (ack?: (response: AckResponse) => void) => {
-      if (!isAdmin(socket.data.role)) {
-        return ack?.({ error: 'not_authorised' });
+    socket.on('admin:release', (ack) => {
+      const adminContext = ensureAdminContext(socket, roomManager);
+      if (!adminContext.ok) {
+        ack?.({ error: adminContext.error });
+        return;
       }
-      releaseDecision();
+      adminContext.state.releaseDecision();
       ack?.({ ok: true });
     });
 
-    socket.on('admin:clear', (ack?: (response: AckResponse) => void) => {
-      if (!isAdmin(socket.data.role)) {
-        return ack?.({ error: 'not_authorised' });
+    socket.on('admin:clear', (ack) => {
+      const adminContext = ensureAdminContext(socket, roomManager);
+      if (!adminContext.ok) {
+        ack?.({ error: adminContext.error });
+        return;
       }
-      clearDecision();
+      adminContext.state.clearDecision();
       ack?.({ ok: true });
     });
 
-    socket.on('timer:command', (payload: TimerPayload, ack?: (response: AckResponse) => void) => {
-      if (!canControlTimer(socket.data.role)) {
-        return ack?.({ error: 'not_authorised' });
+    socket.on('timer:command', (payload, ack) => {
+      const timerContext = ensureTimerControllerContext(socket, roomManager);
+      if (!timerContext.ok) {
+        ack?.({ error: timerContext.error });
+        return;
       }
+
       switch (payload.action) {
         case 'start':
-          startTimer();
+          timerContext.state.startTimer();
           break;
         case 'stop':
-          stopTimer();
+          timerContext.state.stopTimer();
           break;
         case 'reset':
-          resetTimer();
+          timerContext.state.resetTimer();
           break;
         case 'set':
-          startTimerWithSeconds(payload.seconds ?? 60);
+          timerContext.state.startTimerWithSeconds(payload.seconds ?? 60);
           break;
         default:
-          return ack?.({ error: 'unknown_action' });
+          ack?.({ error: 'unknown_action' });
+          return;
       }
+
       ack?.({ ok: true });
     });
 
-    socket.on('interval:command', (payload: IntervalPayload, ack?: (response: AckResponse) => void) => {
-      if (!isAdmin(socket.data.role)) {
-        return ack?.({ error: 'not_authorised' });
+    socket.on('interval:command', (payload, ack) => {
+      const adminContext = ensureAdminContext(socket, roomManager);
+      if (!adminContext.ok) {
+        ack?.({ error: adminContext.error });
+        return;
       }
 
       switch (payload.action) {
         case 'start':
-          startInterval();
+          adminContext.state.startInterval();
           break;
         case 'stop':
-          stopInterval();
+          adminContext.state.stopInterval();
           break;
         case 'reset':
-          resetInterval();
+          adminContext.state.resetInterval();
           break;
         case 'set':
-          configureInterval(payload.seconds ?? 0);
+          adminContext.state.configureInterval(payload.seconds ?? 0);
           break;
         case 'show':
-          setIntervalVisible(true);
+          adminContext.state.setIntervalVisible(true);
           break;
         case 'hide':
-          setIntervalVisible(false);
+          adminContext.state.setIntervalVisible(false);
           break;
         default:
-          return ack?.({ error: 'unknown_action' });
+          ack?.({ error: 'unknown_action' });
+          return;
       }
 
       ack?.({ ok: true });
@@ -228,9 +359,10 @@ export async function createServer() {
 
     socket.on('disconnect', (reason: string) => {
       app.log.info({ event: 'disconnect', role: socket.data.role, reason });
-      const role = socket.data.role;
-      if (isJudge(role)) {
-        setConnected(role, false);
+      const { roomId, judgeRole } = socket.data;
+      if (roomId && judgeRole) {
+        const state = roomManager.getRoomState(roomId);
+        state?.setConnected(judgeRole, false);
       }
     });
   });
@@ -238,14 +370,63 @@ export async function createServer() {
   return app;
 }
 
-function isAdmin(role: ClientData['role']): role is typeof ADMIN_ROLE {
-  return role === ADMIN_ROLE;
+function ensureJudgeContext(socket: AppSocket, roomManager: RoomManager) {
+  const { role, roomId, refereeToken, judgeRole } = socket.data;
+  if (!roomId || !judgeRole || !isJudge(role)) {
+    return { ok: false as const, error: 'not_authorised' };
+  }
+  if (!roomManager.isValidRefToken(roomId, judgeRole, refereeToken)) {
+    return { ok: false as const, error: 'invalid_token' };
+  }
+  const state = roomManager.getRoomState(roomId);
+  if (!state) {
+    return { ok: false as const, error: 'room_not_found' };
+  }
+  return { ok: true as const, state, judge: judgeRole };
 }
 
-function isJudge(role: ClientData['role']): role is Judge {
-  return (JUDGE_ROLES as string[]).includes(role);
+function ensureAdminContext(socket: AppSocket, roomManager: RoomManager) {
+  const { role, roomId, adminPin } = socket.data;
+  if (!roomId || !(isAdmin(role) || isDisplay(role))) {
+    return { ok: false as const, error: 'not_authorised' };
+  }
+  if (!roomManager.verifyAdminPin(roomId, adminPin)) {
+    return { ok: false as const, error: 'invalid_pin' };
+  }
+  const state = roomManager.getRoomState(roomId);
+  if (!state) {
+    return { ok: false as const, error: 'room_not_found' };
+  }
+  return { ok: true as const, state };
 }
 
-function canControlTimer(role: ClientData['role']) {
-  return role === ADMIN_ROLE || role === 'center';
+function ensureTimerControllerContext(socket: AppSocket, roomManager: RoomManager) {
+  const { role, roomId, adminPin, refereeToken, judgeRole } = socket.data;
+  if (!roomId) {
+    return { ok: false as const, error: 'not_authorised' };
+  }
+
+  if (isAdmin(role) || isDisplay(role)) {
+    if (!roomManager.verifyAdminPin(roomId, adminPin)) {
+      return { ok: false as const, error: 'invalid_pin' };
+    }
+    const state = roomManager.getRoomState(roomId);
+    if (!state) {
+      return { ok: false as const, error: 'room_not_found' };
+    }
+    return { ok: true as const, state };
+  }
+
+  if (isJudge(role) && judgeRole === 'center') {
+    if (!roomManager.isValidRefToken(roomId, judgeRole, refereeToken)) {
+      return { ok: false as const, error: 'invalid_token' };
+    }
+    const state = roomManager.getRoomState(roomId);
+    if (!state) {
+      return { ok: false as const, error: 'room_not_found' };
+    }
+    return { ok: true as const, state };
+  }
+
+  return { ok: false as const, error: 'not_authorised' };
 }

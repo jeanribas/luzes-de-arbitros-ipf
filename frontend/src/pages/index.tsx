@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 import { DecisionLights } from '@/components/DecisionLights';
 import { FullscreenButton } from '@/components/FullscreenButton';
@@ -10,11 +11,20 @@ import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWakeLock } from '@/hooks/useWakeLock';
 
+const BASE_SCALE = 0.9;
+const DEFAULT_ZOOM = 1;
+
 export default function DisplayPage() {
-  const { state } = useRoomSocket('display');
+  const router = useRouter();
+  const roomId = typeof router.query.roomId === 'string' ? router.query.roomId : undefined;
+  const adminPin = typeof router.query.pin === 'string' ? router.query.pin : undefined;
+  const { state, error } = useRoomSocket('display', {
+    roomId,
+    adminPin
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [keepAwake, setKeepAwake] = useState(() => {
     if (typeof window === 'undefined') return true;
     const stored = window.localStorage.getItem('displayKeepAwake');
@@ -60,10 +70,10 @@ export default function DisplayPage() {
     window.localStorage.setItem('displayKeepAwake', keepAwake ? 'true' : 'false');
   }, [keepAwake]);
 
-  const zoomLabel = useMemo(() => `${Math.round(zoom * 100)}%`, [zoom]);
+  const zoomLabel = useMemo(() => `${Math.round(zoom * BASE_SCALE * 100)}%`, [zoom]);
 
   const zoomStyle = useMemo(() => ({
-    transform: `scale(${zoom})`,
+    transform: `scale(${zoom * BASE_SCALE})`,
     transformOrigin: 'top center'
   }), [zoom]);
 
@@ -77,14 +87,20 @@ export default function DisplayPage() {
     setZoom((prev) => Math.max(0.6, Number((prev - 0.1).toFixed(2))));
   }, []);
 
-  const resetZoom = useCallback(() => setZoom(1), []);
+  const resetZoom = useCallback(() => setZoom(DEFAULT_ZOOM), []);
+
+  if (!roomId || !adminPin) {
+    return <MissingDisplayCredentials />;
+  }
+
+  const adminLink = `/admin?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`;
 
   return (
     <>
       <Head>
         <title>Referee Lights · Display</title>
       </Head>
-      <main className="relative flex min-h-screen flex-col bg-black px-6 py-12 text-white">
+      <main className="relative flex min-h-screen flex-col bg-black px-6 pt-12 pb-0 text-white">
         <div className="fixed bottom-6 left-6 z-30 flex flex-col items-start gap-3" ref={menuRef}>
           {menuOpen && (
             <div className="w-64 rounded-3xl border border-white/10 bg-[#141820]/95 p-5 shadow-2xl backdrop-blur">
@@ -94,7 +110,7 @@ export default function DisplayPage() {
                   <span className="text-[10px] uppercase tracking-[0.32em] text-slate-400">Ações rápidas</span>
                   <FullscreenButton className="w-full !rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/25" />
                   <Link
-                    href="/admin"
+                    href={adminLink}
                     className="inline-flex w-full items-center justify-center rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/25"
                   >
                     Ir para Admin
@@ -199,12 +215,50 @@ export default function DisplayPage() {
                 variant="display"
                 remainingMs={state?.timerMs ?? 60_000}
                 running={state?.running ?? false}
-                phase={state?.phase}
+                phase={state?.phase ?? 'idle'}
               />
             </div>
           </div>
         )}
       </main>
+      {error && <StatusBanner message={error} />}
     </>
   );
+}
+
+function StatusBanner({ message }: { message: string }) {
+  const text = translateError(message);
+  return (
+    <div className="fixed left-1/2 top-6 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-white/15 px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+      {text}
+    </div>
+  );
+}
+
+function MissingDisplayCredentials() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 py-12 text-center text-white">
+      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">Display não configurado</h1>
+      <p className="max-w-xl text-sm text-white/70">
+        Adicione `roomId` e `pin` à URL, por exemplo `/?roomId=ABCD&pin=1234`, ou abra o painel admin para gerar uma nova sessão.
+      </p>
+      <Link
+        href="/admin"
+        className="rounded-full border border-white/20 px-5 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/10"
+      >
+        Ir para Admin
+      </Link>
+    </main>
+  );
+}
+
+function translateError(message: string) {
+  const map: Record<string, string> = {
+    invalid_pin: 'PIN inválido. Atualize a URL pelo painel admin.',
+    room_not_found: 'Sala não encontrada. Gere uma nova sessão no painel admin.',
+    request_failed: 'Falha ao conectar ao servidor.',
+    not_authorised: 'Acesso não autorizado.',
+    token_revoked: 'Links antigos foram invalidados. Use a URL mais recente do painel.'
+  };
+  return map[message] ?? message;
 }

@@ -1,12 +1,17 @@
 import Head from 'next/head';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 
 import { DecisionLights } from '@/components/DecisionLights';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useWakeLock } from '@/hooks/useWakeLock';
 
 export default function LegendPage() {
-  const { state, status } = useRoomSocket('display');
+  const router = useRouter();
+  const roomId = typeof router.query.roomId === 'string' ? router.query.roomId.toUpperCase() : undefined;
+  const adminPin = typeof router.query.pin === 'string' ? router.query.pin : undefined;
+
+  const { state, status, error: socketError } = useRoomSocket('display', { roomId, adminPin });
   const [menuOpen, setMenuOpen] = useState(false);
   const [bgColor, setBgColor] = useState('#000B1E');
   const [showPlaceholders, setShowPlaceholders] = useState(true);
@@ -91,7 +96,17 @@ export default function LegendPage() {
           <header className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-semibold uppercase tracking-[0.45em] text-white">Legenda</h1>
-              <span className="text-xs uppercase tracking-[0.35em] text-slate-300">Status: {status}</span>
+              <span className="text-xs uppercase tracking-[0.35em] text-slate-300">
+                Status: {status}{roomId ? ` · Sala ${roomId}` : ''}
+              </span>
+              {!roomId || !adminPin ? (
+                <span className="text-[10px] uppercase tracking-[0.3em] text-amber-200">
+                  Informe `roomId` e `pin` na URL para conectar.
+                </span>
+              ) : null}
+              {socketError ? (
+                <span className="text-[10px] uppercase tracking-[0.3em] text-red-300">Erro: {socketError}</span>
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-3">
               <button

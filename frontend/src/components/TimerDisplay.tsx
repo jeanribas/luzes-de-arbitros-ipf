@@ -167,8 +167,16 @@ export function TimerDisplay(props: TimerDisplayProps) {
   if (hidden) return null;
 
   if (variant === 'display') {
+    const displayScaleStyle = {
+      transform: 'scale(1.15)',
+      transformOrigin: 'center'
+    } as const;
+
     return (
-      <div className="mx-auto grid w-full max-w-[min(88vw,1300px)] grid-cols-[max-content_auto_max-content] items-end gap-14">
+      <div
+        className="mx-auto grid w-full max-w-[min(88vw,1300px)] grid-cols-[max-content_auto_max-content] items-end gap-14"
+        style={displayScaleStyle}
+      >
         <AttemptColumn badges={cooldownBadges} ghost attemptNo={attemptNo} />
         <div className="flex flex-col items-center gap-6">
           <div

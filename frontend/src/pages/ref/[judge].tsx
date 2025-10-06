@@ -16,6 +16,10 @@ export default function RefereeConsole() {
   const router = useRouter();
   const judge = router.query.judge;
 
+  if (!router.isReady) {
+    return null;
+  }
+
   if (typeof judge !== 'string' || !['left', 'center', 'right'].includes(judge)) {
     return <p className="min-h-screen bg-black p-6 text-slate-100">Invalid referee route.</p>;
   }
@@ -24,7 +28,13 @@ export default function RefereeConsole() {
 }
 
 function RefereeView({ judge }: { judge: Judge }) {
-  const { state, status, sendVote, sendCard, timerStart, timerStop, timerReset } = useRoomSocket(judge);
+  const router = useRouter();
+  const roomId = typeof router.query.roomId === 'string' ? router.query.roomId : undefined;
+  const token = typeof router.query.token === 'string' ? router.query.token : undefined;
+  const { state, status, sendVote, sendCard, timerStart, timerStop, timerReset, error } = useRoomSocket(judge, {
+    roomId,
+    refereeToken: token
+  });
   const isCenter = judge === 'center';
   const timerSeconds = useMemo(() => Math.round((state?.timerMs ?? 0) / 1000), [state?.timerMs]);
   const [hydrated, setHydrated] = useState(false);
@@ -86,12 +96,16 @@ function RefereeView({ judge }: { judge: Judge }) {
     timerReset();
   }, [timerReset, vibrate]);
 
+  const missingCredentials = !roomId || !token;
+
   return (
     <>
       <Head>
         <title>{`Referee · ${judge.toUpperCase()}`}</title>
       </Head>
-      {isCenter ? (
+      {missingCredentials ? (
+        <MissingRefCredentials judge={judge} />
+      ) : isCenter ? (
         <CenterLayout
           status={status}
           timerSeconds={timerSeconds}
@@ -114,6 +128,7 @@ function RefereeView({ judge }: { judge: Judge }) {
           onToggleCard={toggleCard}
         />
       )}
+      {error && <StatusBanner message={error} />}
     </>
   );
 }
@@ -259,6 +274,36 @@ function SideLayout(props: {
       </section>
     </main>
   );
+}
+
+function MissingRefCredentials({ judge }: { judge: Judge }) {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-950 px-6 py-12 text-center text-white">
+      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">Console indisponível</h1>
+      <p className="max-w-md text-sm text-slate-300">
+        Utilize um QR Code atualizado para acessar `{judge}` com sala e token válidos.
+      </p>
+    </main>
+  );
+}
+
+function StatusBanner({ message }: { message: string }) {
+  const text = translateError(message);
+  return (
+    <div className="fixed left-1/2 top-6 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-white/15 px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+      {text}
+    </div>
+  );
+}
+
+function translateError(message: string) {
+  const map: Record<string, string> = {
+    invalid_token: 'Token inválido ou revogado. Solicite um novo QR Code.',
+    room_not_found: 'Sala não encontrada. Verifique o QR Code.',
+    not_authorised: 'Acesso não autorizado.',
+    request_failed: 'Falha ao conectar ao servidor.'
+  };
+  return map[message] ?? message;
 }
 
 function useHapticFeedback() {

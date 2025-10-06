@@ -2,22 +2,22 @@
 
 ## 1. Preparação
 
-1. Abra o dashboard em `https://app.seu-dominio/admin`.
-2. Clique em “Create new room” para gerar uma plataforma.
-3. Anote o `Room code` (ex.: `PLAT1`) e o PIN de admin.
-4. No painel, compartilhe os QR codes com os árbitros (um por posição). Cada QR expira em 15 minutos – clique em “Refresh tokens” caso precise renovar.
+1. Abra o painel em `https://app.seu-dominio/admin`.
+2. Clique em **Criar nova sessão** para gerar a plataforma.
+3. Anote o `roomId` (ex.: `PLAT1`) e o PIN administrativo.
+4. Use o botão **Mostrar QR Codes** para exibir os links individuais dos árbitros. Caso precise revogar acessos, clique em **Gerar novos links** no modal e confirme a ação.
 
 ## 2. Configurar Display
 
 1. Acesse `https://app.seu-dominio/?roomId=PLAT1&pin=XXXX` na TV/monitor.
 2. Opcional: coloque em tela cheia (`F` ou botão “Toggle Fullscreen”).
-3. Ajuste os toggles (timer, logo, QR codes, fullscreen hint) conforme necessário.
+3. Ajuste o zoom pelo menu flutuante (botão hambúrguer no canto inferior esquerdo). O timer aparece 15% maior por padrão na versão 1.1.
 
 ## 3. Onboarding dos Árbitros
 
 1. Cada árbitro escaneia o QR correspondente com o celular.
-2. A console móvel mostra dois botões grandes: “GOOD LIFT” (branco) e “NO LIFT” (vermelho).
-3. Ao tocar “NO LIFT”, o árbitro escolhe opcionalmente o cartão IPF (1/2/3) para o motivo.
+2. O console móvel exibe os botões “GOOD LIFT” (branco) e “NO LIFT” (vermelho).
+3. Ao tocar “NO LIFT”, o árbitro seleciona opcionalmente o cartão IPF (1/2/3) para o motivo.
 
 ## 4. Fluxo do Levantamento
 
@@ -35,8 +35,8 @@
 
 ## 6. Override do Júri
 
-- Se o júri determinar mudança, use os botões “Mark Good Lift” / “Mark No Lift”.
-- Todos os sockets recebem o evento `jury:override` e a decisão é atualizada.
+- Se o júri determinar mudança, o operador usa **Mark Good Lift** / **Mark No Lift**.
+- Todos os clientes conectados recebem o evento `jury:override` e a decisão é atualizada.
 
 ## 7. Boas práticas
 

@@ -24,30 +24,65 @@ interface UseRoomSocketResult {
   intervalReset: () => void;
   intervalShow: () => void;
   intervalHide: () => void;
+  error: string | null;
 }
 
-export function useRoomSocket(role: ClientRole): UseRoomSocketResult {
+interface UseRoomSocketOptions {
+  roomId?: string;
+  adminPin?: string;
+  refereeToken?: string;
+}
+
+export function useRoomSocket(role: ClientRole, options: UseRoomSocketOptions = {}): UseRoomSocketResult {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [state, setState] = useState<AppState | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const { roomId, adminPin, refereeToken } = options;
 
   useEffect(() => {
+    const requirementsMet = canConnect(role, { roomId, adminPin, refereeToken });
+    if (!requirementsMet) {
+      setStatus('disconnected');
+      setState(null);
+      setError(null);
+      socketRef.current?.removeAllListeners();
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      return;
+    }
+
     const socket = io(getWsUrl(), {
       transports: ['websocket'],
       autoConnect: false
     });
 
+    const registerPayload: RegistrationPayload = {
+      role,
+      roomId: roomId!,
+      pin: adminPin,
+      token: refereeToken
+    };
+
     socket.on('connect', () => {
       setStatus('connected');
-      socket.emit('client:register', { role });
+      socket.emit('client:register', registerPayload, (response: AckResponse) => {
+        if ('error' in response) {
+          setError(response.error);
+          socket.disconnect();
+          return;
+        }
+        setError(null);
+      });
     });
 
     socket.on('disconnect', () => {
       setStatus('disconnected');
     });
 
-    socket.on('connect_error', () => {
+    socket.on('connect_error', (err: Error) => {
       setStatus('disconnected');
+      setError(err.message);
     });
 
     socket.on('state:update', (snapshot: AppState) => {
@@ -63,7 +98,7 @@ export function useRoomSocket(role: ClientRole): UseRoomSocketResult {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [role]);
+  }, [role, roomId, adminPin, refereeToken]);
 
   const send = useMemo(() => {
     return (event: string, payload?: unknown) => {
@@ -112,6 +147,35 @@ export function useRoomSocket(role: ClientRole): UseRoomSocketResult {
     intervalStop,
     intervalReset,
     intervalShow,
-    intervalHide
+    intervalHide,
+    error
   };
 }
+
+function canConnect(
+  role: ClientRole,
+  options: { roomId?: string; adminPin?: string; refereeToken?: string }
+) {
+  if (!options.roomId) {
+    return false;
+  }
+
+  if (role === 'admin' || role === 'display') {
+    return Boolean(options.adminPin);
+  }
+
+  if (role === 'viewer') {
+    return true;
+  }
+
+  return Boolean(options.refereeToken);
+}
+
+type RegistrationPayload = {
+  role: ClientRole;
+  roomId: string;
+  pin?: string;
+  token?: string;
+};
+
+type AckResponse = { ok: true } | { error: string };

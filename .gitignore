@@ -11,6 +11,7 @@ server/.env
 frontend/.env.local
 frontend/.next
 frontend/out
+*.zip
 
 # Editor
 .DS_Store
