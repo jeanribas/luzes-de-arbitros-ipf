@@ -53,17 +53,29 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
 
   const [qrMenuOpen, setQrMenuOpen] = useState(false);
   const [appOrigin, setAppOrigin] = useState('');
+  const configuredQrOrigin = process.env.NEXT_PUBLIC_QR_ORIGIN?.trim();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const protocol = window.location.protocol;
+      const protocol = window.location.protocol || 'https:';
+      const protocolWithSlashes = protocol.endsWith(':') ? `${protocol}//` : 'https://';
       const port = window.location.port ? `:${window.location.port}` : '';
       const fallbackHost = window.location.hostname;
-      const ipHost = networkIps.find(Boolean);
+      const normalizedConfiguredOrigin = normalizeConfiguredOrigin(
+        configuredQrOrigin,
+        protocolWithSlashes
+      );
+
+      if (normalizedConfiguredOrigin) {
+        setAppOrigin(normalizedConfiguredOrigin);
+        return;
+      }
+
+      const ipHost = selectUsefulIp(networkIps);
       const host = ipHost ?? fallbackHost;
-      setAppOrigin(`${protocol}//${host}${port}`);
+      setAppOrigin(`${protocolWithSlashes}${host}${port}`);
     }
-  }, [networkIps]);
+  }, [networkIps, configuredQrOrigin]);
 
   const qrTargets = useMemo(() => {
     if (!appOrigin) return [] as Array<{ judge: string; label: string; href: string }>;
@@ -336,6 +348,37 @@ function QrMenu({
       </div>
     </div>
   );
+}
+
+function normalizeConfiguredOrigin(value: string | undefined, defaultProtocol: string) {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  const hasProtocol = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(trimmed);
+  const input = hasProtocol ? trimmed : `${defaultProtocol}${trimmed.replace(/^\/+/, '')}`;
+
+  try {
+    const url = new URL(input);
+    return url.origin;
+  } catch (error) {
+    console.warn('Invalid NEXT_PUBLIC_QR_ORIGIN provided:', error);
+    return '';
+  }
+}
+
+function selectUsefulIp(candidates: string[]) {
+  return candidates.find((candidate) => {
+    if (!candidate) return false;
+    if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(candidate)) return false;
+
+    const [a, b] = candidate.split('.').map(Number);
+    if (a === 10) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+
+    return false;
+  });
 }
 
 export const getServerSideProps: GetServerSideProps<AdminPageProps> = async () => {
