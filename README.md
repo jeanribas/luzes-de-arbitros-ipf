@@ -16,6 +16,15 @@ Cada sessão possui `roomId` e PIN. O painel gera automaticamente os QR Codes do
 - Ajustes de layout no display: escala base menor (90%), cronômetro central 15% maior e padding inferior removido
 - Melhorias de UX gerais (formulários, foco, cópia) e correções nas requisições `POST /rooms`
 
+## Screenshots
+
+![Painel administrativo](screenshots/admin.png)
+![Display principal](screenshots/display.png)
+![Display com timer](screenshots/display-2.png)
+![Visual de intervalo – etapa 1](screenshots/intervalo-1.png)
+![Visual de intervalo – etapa 2](screenshots/intervalo-2.png)
+![Tela chroma key](screenshots/cromakey.png)
+
 ## Executando localmente
 
 ### 1. Server (Fastify + Socket.IO)

@@ -308,6 +308,7 @@ export class RoomState {
     this.state.intervalMs = Math.max(0, this.state.intervalMs - delta);
     if (this.state.intervalMs === 0) {
       this.stopIntervalInternal();
+      this.state.intervalVisible = false;
     }
     this.notify();
   }
