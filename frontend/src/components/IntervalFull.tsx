@@ -37,7 +37,7 @@ export function IntervalFull({ intervalMs, configuredMs, running, labels }: Inte
     } else if (timeToSwap > 0) {
       finishedRef.current = false;
     }
-  }, [intervalMs, running, configuredMs]);
+  }, [intervalMs, running, configuredMs, timeToSwap]);
 
   useEffect(() => {
     if (!running) {
@@ -64,7 +64,7 @@ export function IntervalFull({ intervalMs, configuredMs, running, labels }: Inte
     if (countdownBeepedSeconds.current.has(currentSecond)) return;
     countdownBeepedSeconds.current.add(currentSecond);
     playCountdownBeep(audioCtxRef);
-  }, [intervalMs, running]);
+  }, [intervalMs, running, timeToSwap]);
 
   useEffect(() => {
     if (!running) {

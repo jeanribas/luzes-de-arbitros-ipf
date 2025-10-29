@@ -91,7 +91,7 @@ function RefereeView({ judge, messages }: { judge: Judge; messages: Messages }) 
     }
     sendVote('white');
     sendCard(null);
-  }, [cards.length, sendCard, sendVote, vibrate, vote]);
+  }, [sendCard, sendVote, vibrate, vote]);
 
   const toggleCard = useCallback(
     (card: Exclude<CardValue, null>) => {

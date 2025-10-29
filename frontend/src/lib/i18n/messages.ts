@@ -19,6 +19,7 @@ type CommonMessages = {
 };
 
 type DisplayMessages = {
+  metaDescription?: string;
   menu: {
     optionsTitle: string;
     quickActionsTitle: string;
@@ -58,6 +59,7 @@ type DisplayMessages = {
 };
 
 type AdminMessages = {
+  metaDescription?: string;
   header: {
     title: string;
     generatingLinks: string;
@@ -134,6 +136,7 @@ type AdminMessages = {
 };
 
 type LegendMessages = {
+  metaDescription?: string;
   title: string;
   statusRoomSuffix: string;
   missingCredentials: string;
@@ -161,6 +164,7 @@ type LegendMessages = {
 };
 
 type RefereeMessages = {
+  metaDescription?: string;
   invalidRoute: string;
   center: {
     title: string;

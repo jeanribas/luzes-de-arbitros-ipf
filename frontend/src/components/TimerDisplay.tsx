@@ -123,14 +123,16 @@ export function TimerDisplay(props: TimerDisplayProps) {
   const urgencyColor = isZero ? 'text-[#ff1f1f]' : urgency ? 'text-[#ff4d4f]' : 'text-white';
 
   useEffect(() => {
+    const beepedSeconds = beepedSecondsRef.current;
+
     if (variant !== 'display' || hidden) {
-      beepedSecondsRef.current.clear();
+      beepedSeconds.clear();
       finalBeepPlayedRef.current = false;
       return;
     }
 
     if (remainingMs > 10_000) {
-      beepedSecondsRef.current.clear();
+      beepedSeconds.clear();
       finalBeepPlayedRef.current = false;
       return;
     }
@@ -138,7 +140,7 @@ export function TimerDisplay(props: TimerDisplayProps) {
     if (remainingMs <= 0) {
       if (!finalBeepPlayedRef.current) {
         finalBeepPlayedRef.current = true;
-        beepedSecondsRef.current.clear();
+        beepedSeconds.clear();
         playLongBeep(audioCtxRef);
       }
       return;
@@ -147,18 +149,20 @@ export function TimerDisplay(props: TimerDisplayProps) {
     finalBeepPlayedRef.current = false;
 
     const currentSecond = Math.ceil(remainingMs / 1000);
-    if (beepedSecondsRef.current.has(currentSecond)) return;
+    if (beepedSeconds.has(currentSecond)) return;
 
-    beepedSecondsRef.current.add(currentSecond);
+    beepedSeconds.add(currentSecond);
     playShortBeep(audioCtxRef);
   }, [remainingMs, variant, hidden]);
 
   useEffect(() => {
+    const beepedSeconds = beepedSecondsRef.current;
     return () => {
-      beepedSecondsRef.current.clear();
+      beepedSeconds.clear();
       finalBeepPlayedRef.current = false;
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close().catch(() => undefined);
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx) {
+        audioCtx.close().catch(() => undefined);
         audioCtxRef.current = null;
       }
     };
