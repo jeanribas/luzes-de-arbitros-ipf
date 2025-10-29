@@ -1,0 +1,10 @@
+# Referee Lights robots.txt
+User-agent: *
+Disallow: /admin
+Disallow: /display
+Disallow: /legend
+Disallow: /ref/
+Allow: /
+
+Sitemap: https://luzes-ipf.assist.com.br/sitemap.xml
+

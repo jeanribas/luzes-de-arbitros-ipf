@@ -22,12 +22,12 @@ Each session has a `roomId` and an admin PIN. The panel automatically generates 
 
 ## Screenshots
 
-![Admin panel](screenshots/admin.png)  
-![Main display](screenshots/display.png)  
-![Display with timer](screenshots/display-2.png)  
-![Interval view – stage 1](screenshots/intervalo-1.png)  
-![Interval view – stage 2](screenshots/intervalo-2.png)  
-![Chroma key screen](screenshots/cromakey.png)
+![Admin panel](screenshots/admin.jpg)  
+![Main display](screenshots/display.jpg)  
+![Display with timer](screenshots/display-2.jpg)  
+![Interval view – stage 1](screenshots/intervalo-1.jpg)  
+![Interval view – stage 2](screenshots/intervalo-2.jpg)  
+![Chroma key screen](screenshots/cromakey.jpg)
 
 ## Running locally
 
@@ -101,4 +101,3 @@ The helper only requires Node 18+. Full instructions (including OS permissions) 
 - **Server**: any Node 18+ environment (e.g., EasyPanel). Run `npm run build` and then `npm start`.
 - **Frontend**: Vercel or similar. Configure `NEXT_PUBLIC_WS_URL` and `NEXT_PUBLIC_API_URL` with the server domain. Use `NEXT_PUBLIC_QR_ORIGIN` (e.g., `luzes-ipf.assist.com.br`) to force QR codes to share a fixed public origin.
 - **Windows bundle**: a script builds a portable package (backend + frontend + scripts) under `dist/windows-bundle`. See [docs/windows-package.md](docs/windows-package.md) for details.
-

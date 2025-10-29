@@ -1,4 +1,3 @@
-import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -6,6 +5,7 @@ import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { CardValue, Judge, VoteValue } from '@/types/state';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
+import { Seo } from '@/components/Seo';
 
 const CARD_OPTIONS: Array<{ value: Exclude<CardValue, null>; color: string; glyph: string }> = [
   { value: 1, color: 'bg-red-500 text-white', glyph: '1' },
@@ -25,7 +25,18 @@ export default function RefereeConsole() {
 
   if (typeof judge !== 'string' || !['left', 'center', 'right'].includes(judge)) {
     return (
-      <p className="min-h-screen bg-black p-6 text-slate-100">{messages.referee.invalidRoute}</p>
+      <>
+        <Seo
+          title="Referee Lights · Console"
+          description={
+            messages.referee.metaDescription ??
+            'Console móvel do árbitro com ações GOOD/NO LIFT e cartões IPF, sincronizado ao painel Referee Lights.'
+          }
+          canonicalPath="/ref"
+          noIndex
+        />
+        <p className="min-h-screen bg-black p-6 text-slate-100">{messages.referee.invalidRoute}</p>
+      </>
     );
   }
 
@@ -121,9 +132,15 @@ function RefereeView({ judge, messages }: { judge: Judge; messages: Messages }) 
 
   return (
     <>
-      <Head>
-        <title>{`Referee Lights · ${judgeTitle}`}</title>
-      </Head>
+      <Seo
+        title={`Referee Lights · ${judgeTitle}`}
+        description={
+          refereeMessages.metaDescription ??
+          'Console móvel do árbitro com ações GOOD/NO LIFT, cartões IPF e integração em tempo real com o painel Referee Lights.'
+        }
+        canonicalPath={`/ref/${judge}`}
+        noIndex
+      />
       {missingCredentials ? (
         <MissingRefCredentials judge={judge} messages={refereeMessages} />
       ) : isCenter ? (

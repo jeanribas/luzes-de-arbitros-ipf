@@ -22,12 +22,12 @@ Cada sesión tiene `roomId` y PIN administrativo. El panel genera automáticamen
 
 ## Capturas
 
-![Panel administrativo](screenshots/admin.png)  
-![Pantalla principal](screenshots/display.png)  
-![Pantalla con cronómetro](screenshots/display-2.png)  
-![Vista de intervalo – etapa 1](screenshots/intervalo-1.png)  
-![Vista de intervalo – etapa 2](screenshots/intervalo-2.png)  
-![Pantalla chroma key](screenshots/cromakey.png)
+![Panel administrativo](screenshots/admin.jpg)  
+![Pantalla principal](screenshots/display.jpg)  
+![Pantalla con cronómetro](screenshots/display-2.jpg)  
+![Vista de intervalo – etapa 1](screenshots/intervalo-1.jpg)  
+![Vista de intervalo – etapa 2](screenshots/intervalo-2.jpg)  
+![Pantalla chroma key](screenshots/cromakey.jpg)
 
 ## Ejecución local
 
@@ -101,4 +101,3 @@ El helper solo requiere Node 18+. Las instrucciones completas (incluyendo permis
 - **Servidor**: cualquier entorno Node 18+ (por ejemplo, EasyPanel). Ejecute `npm run build` y luego `npm start`.
 - **Frontend**: Vercel o similar. Configure `NEXT_PUBLIC_WS_URL` y `NEXT_PUBLIC_API_URL` con el dominio del servidor. Use `NEXT_PUBLIC_QR_ORIGIN` (ej.: `luzes-ipf.assist.com.br`) para forzar que los códigos QR compartan un origen público fijo.
 - **Paquete Windows**: un script genera un paquete portátil (backend + frontend + scripts) en `dist/windows-bundle`. Consulte [docs/windows-package.md](docs/windows-package.md).
-

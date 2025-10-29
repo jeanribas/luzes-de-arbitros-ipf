@@ -222,6 +222,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
     }
   },
     display: {
+      metaDescription:
+        'Display sincronizado para eventos IPF com luzes, cronômetro e alertas de intervalo conectados ao painel Referee Lights.',
       menu: {
         optionsTitle: 'Opções',
         quickActionsTitle: 'Ações rápidas',
@@ -260,6 +262,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       }
     },
     admin: {
+      metaDescription:
+        'Controle o fluxo das luzes IPF: crie sessões com PIN, gere QR Codes, ajuste timers e acompanhe árbitros em tempo real.',
       header: {
         title: 'Administração da Plataforma',
         generatingLinks: 'Gerando novos links...'
@@ -338,6 +342,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       }
     },
     legend: {
+      metaDescription:
+        'Painel complementar com timer customizável, modo chroma key e status em tempo real para transmissões IPF.',
       title: 'Legenda',
       statusRoomSuffix: ' - Sala {roomId}',
       missingCredentials: 'Informe `roomId` e `pin` na URL para conectar.',
@@ -364,6 +370,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       waiting: 'Aguardando conexão...'
     },
     referee: {
+      metaDescription:
+        'Console móvel do árbitro com botões GOOD/NO LIFT, cartões IPF e sincronização em tempo real com o painel Referee Lights.',
       invalidRoute: 'Rota de árbitro inválida.',
       center: {
         title: 'Árbitro Central',
@@ -416,6 +424,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
     }
   },
     display: {
+      metaDescription:
+        'Synchronized IPF display with live lights, timers, and interval alerts managed from the Referee Lights admin panel.',
       menu: {
         optionsTitle: 'Options',
         quickActionsTitle: 'Quick actions',
@@ -454,6 +464,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       }
     },
     admin: {
+      metaDescription:
+        'Control the IPF referee light setup: create sessions, rotate QR codes, tweak timers, and monitor judges in real time.',
       header: {
         title: 'Platform Admin',
         generatingLinks: 'Generating new links...'
@@ -532,6 +544,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       }
     },
     legend: {
+      metaDescription:
+        'Companion screen with customizable timer, chroma key background, and real-time status for IPF broadcasts.',
       title: 'Legend',
       statusRoomSuffix: ' - Room {roomId}',
       missingCredentials: 'Add `roomId` and `pin` to the URL to connect.',
@@ -558,6 +572,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       waiting: 'Waiting for connection...'
     },
     referee: {
+      metaDescription:
+        'Mobile referee console with GOOD/NO LIFT controls, IPF cards, and real-time sync with the Referee Lights platform.',
       invalidRoute: 'Invalid referee route.',
       center: {
         title: 'Center Referee',
@@ -610,6 +626,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
     }
   },
     display: {
+      metaDescription:
+        'Pantalla IPF sincronizada con luces, cronómetro y avisos de intervalo controlados desde el panel Referee Lights.',
       menu: {
         optionsTitle: 'Opciones',
         quickActionsTitle: 'Acciones rápidas',
@@ -648,6 +666,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       }
     },
     admin: {
+      metaDescription:
+        'Administra las luces IPF: crea sesiones con PIN, genera códigos QR, ajusta temporizadores y monitorea a los árbitros en tiempo real.',
       header: {
         title: 'Administración de la plataforma',
         generatingLinks: 'Generando nuevos enlaces...'
@@ -726,6 +746,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       }
     },
     legend: {
+      metaDescription:
+        'Pantalla complementaria con temporizador personalizable, fondo chroma key y estado en tiempo real para transmisiones IPF.',
       title: 'Leyenda',
       statusRoomSuffix: ' - Sala {roomId}',
       missingCredentials: 'Agrega `roomId` y `pin` a la URL para conectar.',
@@ -752,6 +774,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
       waiting: 'Esperando la conexión...'
     },
     referee: {
+      metaDescription:
+        'Consola móvil para árbitros con botones GOOD/NO LIFT, tarjetas IPF y sincronización en tiempo real con el panel Referee Lights.',
       invalidRoute: 'Ruta de árbitro inválida.',
       center: {
         title: 'Árbitro central',

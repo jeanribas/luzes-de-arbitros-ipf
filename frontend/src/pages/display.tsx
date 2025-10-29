@@ -1,4 +1,3 @@
-import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
@@ -11,6 +10,7 @@ import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
+import { Seo } from '@/components/Seo';
 
 const BASE_SCALE = 0.9;
 const DEFAULT_ZOOM = 1;
@@ -114,9 +114,15 @@ export default function DisplayPage() {
 
   return (
     <>
-      <Head>
-        <title>Referee Lights · Display</title>
-      </Head>
+      <Seo
+        title="Referee Lights · Display"
+        description={
+          displayMessages.metaDescription ??
+          'Tela de display IPF sincronizada com timers, luzes e alertas de intervalo controlados pelo painel Referee Lights.'
+        }
+        canonicalPath="/display"
+        noIndex
+      />
       <main className="relative flex min-h-screen flex-col bg-black px-6 pt-12 pb-0 text-white">
         <div className="fixed bottom-6 left-6 z-30 flex flex-col items-start gap-3" ref={menuRef}>
           {menuOpen && (

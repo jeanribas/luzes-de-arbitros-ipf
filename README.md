@@ -22,12 +22,12 @@ Cada sessão possui `roomId` e PIN. O painel gera automaticamente os QR Codes do
 
 ## Screenshots
 
-![Painel administrativo](screenshots/admin.png)
-![Display principal](screenshots/display.png)
-![Display com timer](screenshots/display-2.png)
-![Visual de intervalo – etapa 1](screenshots/intervalo-1.png)
-![Visual de intervalo – etapa 2](screenshots/intervalo-2.png)
-![Tela chroma key](screenshots/cromakey.png)
+![Painel administrativo](screenshots/admin.jpg)
+![Display principal](screenshots/display.jpg)
+![Display com timer](screenshots/display-2.jpg)
+![Visual de intervalo – etapa 1](screenshots/intervalo-1.jpg)
+![Visual de intervalo – etapa 2](screenshots/intervalo-2.jpg)
+![Tela chroma key](screenshots/cromakey.jpg)
 
 ## Executando localmente
 

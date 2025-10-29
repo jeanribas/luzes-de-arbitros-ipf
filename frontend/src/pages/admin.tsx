@@ -1,4 +1,3 @@
-import Head from 'next/head';
 import Link from 'next/link';
 import type { GetServerSideProps } from 'next';
 import QRCode from 'react-qr-code';
@@ -13,6 +12,7 @@ import { createRoom, accessRoom, refreshRefereeTokens, type JoinQrCodesResponse 
 import type { Judge } from '@/types/state';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
 import { APP_LOCALES, type AppLocale } from '@/lib/i18n/config';
+import { Seo } from '@/components/Seo';
 
 interface AdminPageProps {
   networkIps: string[];
@@ -304,9 +304,12 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
   }, [roomId, adminPin]);
 
   const pageHead = (
-    <Head>
-      <title>{`Referee Lights · ${adminMessages.header.title}`}</title>
-    </Head>
+    <Seo
+      title={`Referee Lights · ${adminMessages.header.title}`}
+      description={adminMessages.metaDescription ?? 'Gerencie sessões IPF com PIN, timers, QR Codes e controle completo do painel Referee Lights.'}
+      canonicalPath="/admin"
+      noIndex
+    />
   );
 
   const hasCredentials = Boolean(roomId && adminPin);

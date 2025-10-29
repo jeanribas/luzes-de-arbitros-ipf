@@ -1,4 +1,3 @@
-import Head from 'next/head';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 
@@ -6,6 +5,7 @@ import { DecisionLights } from '@/components/DecisionLights';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { getMessages } from '@/lib/i18n/messages';
+import { Seo } from '@/components/Seo';
 
 export default function LegendPage() {
   const router = useRouter();
@@ -106,9 +106,15 @@ export default function LegendPage() {
 
   return (
     <>
-      <Head>
-        <title>{`Referee Lights · ${legendMessages.title}`}</title>
-      </Head>
+      <Seo
+        title={`Referee Lights · ${legendMessages.title}`}
+        description={
+          legendMessages.metaDescription ??
+          'Tela auxiliar com timer customizável, modo chroma e status sincronizado para transmissões de eventos IPF.'
+        }
+        canonicalPath="/legend"
+        noIndex
+      />
 
       <main
         className="flex min-h-screen flex-col gap-12 px-8 py-10 text-slate-100"
