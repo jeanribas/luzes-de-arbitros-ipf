@@ -24,7 +24,7 @@ test('platform flow: ready -> votes -> release -> clear', async ({ page, context
   await expect(adminPage.getByText('Live')).toBeVisible({ timeout: 10_000 });
 
   const displayPage = await context.newPage();
-  await displayPage.goto(`/?roomId=${payload.roomId}&pin=${payload.adminPin}`);
+  await displayPage.goto(`/display?roomId=${payload.roomId}&pin=${payload.adminPin}`);
   await expect(displayPage.getByText('Referee Lights')).toBeVisible();
   await expect(displayPage.getByText('Live')).toBeVisible({ timeout: 10_000 });
 

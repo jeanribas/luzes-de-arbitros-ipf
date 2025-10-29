@@ -3,6 +3,8 @@ export type VoteValue = 'white' | 'red' | null;
 export type CardValue = 1 | 2 | 3 | null;
 export type Phase = 'idle' | 'revealed';
 
+import type { AppLocale } from '@/lib/i18n/config';
+
 export interface AppState {
   phase: Phase;
   votes: Record<Judge, VoteValue>;
@@ -14,6 +16,7 @@ export interface AppState {
   intervalConfiguredMs: number;
   intervalRunning: boolean;
   intervalVisible: boolean;
+  locale: AppLocale;
 }
 
 export type ClientRole = 'admin' | 'display' | Judge | 'viewer';

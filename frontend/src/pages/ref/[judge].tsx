@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { CardValue, Judge, VoteValue } from '@/types/state';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { getMessages, type Messages } from '@/lib/i18n/messages';
 
 const CARD_OPTIONS: Array<{ value: Exclude<CardValue, null>; color: string; glyph: string }> = [
   { value: 1, color: 'bg-red-500 text-white', glyph: '1' },
@@ -15,20 +16,26 @@ const CARD_OPTIONS: Array<{ value: Exclude<CardValue, null>; color: string; glyp
 export default function RefereeConsole() {
   const router = useRouter();
   const judge = router.query.judge;
+  const locale = typeof router.locale === 'string' ? router.locale : undefined;
+  const messages = useMemo(() => getMessages(locale), [locale]);
 
   if (!router.isReady) {
     return null;
   }
 
   if (typeof judge !== 'string' || !['left', 'center', 'right'].includes(judge)) {
-    return <p className="min-h-screen bg-black p-6 text-slate-100">Invalid referee route.</p>;
+    return (
+      <p className="min-h-screen bg-black p-6 text-slate-100">{messages.referee.invalidRoute}</p>
+    );
   }
 
-  return <RefereeView judge={judge as Judge} />;
+  return <RefereeView judge={judge as Judge} messages={messages} />;
 }
 
-function RefereeView({ judge }: { judge: Judge }) {
+function RefereeView({ judge, messages }: { judge: Judge; messages: Messages }) {
   const router = useRouter();
+  const commonMessages = messages.common;
+  const refereeMessages = messages.referee;
   const roomId = typeof router.query.roomId === 'string' ? router.query.roomId : undefined;
   const token = typeof router.query.token === 'string' ? router.query.token : undefined;
   const { state, status, sendVote, sendCard, timerStart, timerStop, timerReset, error } = useRoomSocket(judge, {
@@ -36,6 +43,11 @@ function RefereeView({ judge }: { judge: Judge }) {
     refereeToken: token
   });
   const isCenter = judge === 'center';
+  const judgeTitle = isCenter
+    ? refereeMessages.center.title
+    : judge === 'left'
+      ? refereeMessages.side.leftTitle
+      : refereeMessages.side.rightTitle;
   const timerSeconds = useMemo(() => Math.round((state?.timerMs ?? 0) / 1000), [state?.timerMs]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -49,6 +61,15 @@ function RefereeView({ judge }: { judge: Judge }) {
 
   const vote = state?.votes[judge] ?? null;
   const cards = state?.cards[judge] ?? [];
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const targetLocale = state?.locale;
+    if (!targetLocale) return;
+    if (router.locale === targetLocale) return;
+    document.cookie = `NEXT_LOCALE=${targetLocale}; path=/; max-age=31536000`;
+    void router.replace({ pathname: router.pathname, query: router.query }, undefined, { locale: targetLocale });
+  }, [router, state?.locale]);
 
   const handleValid = useCallback(() => {
     vibrate();
@@ -101,10 +122,10 @@ function RefereeView({ judge }: { judge: Judge }) {
   return (
     <>
       <Head>
-        <title>{`Referee · ${judge.toUpperCase()}`}</title>
+        <title>{`Referee Lights · ${judgeTitle}`}</title>
       </Head>
       {missingCredentials ? (
-        <MissingRefCredentials judge={judge} />
+        <MissingRefCredentials judge={judge} messages={refereeMessages} />
       ) : isCenter ? (
         <CenterLayout
           status={status}
@@ -117,6 +138,8 @@ function RefereeView({ judge }: { judge: Judge }) {
           onReset={handleReset}
           onValid={handleValid}
           onToggleCard={toggleCard}
+          messages={refereeMessages}
+          commonMessages={commonMessages}
         />
       ) : (
         <SideLayout
@@ -126,9 +149,11 @@ function RefereeView({ judge }: { judge: Judge }) {
           cards={cards}
           onValid={handleValid}
           onToggleCard={toggleCard}
+          messages={refereeMessages}
+          commonMessages={commonMessages}
         />
       )}
-      {error && <StatusBanner message={error} />}
+      {error && <StatusBanner message={error} errors={commonMessages.errors} />}
     </>
   );
 }
@@ -144,6 +169,8 @@ function CenterLayout(props: {
   onReset: () => void;
   onValid: () => void;
   onToggleCard: (card: Exclude<CardValue, null>) => void;
+  messages: Messages['referee'];
+  commonMessages: Messages['common'];
 }) {
   const {
     status,
@@ -155,7 +182,9 @@ function CenterLayout(props: {
     onPause,
     onReset,
     onValid,
-    onToggleCard
+    onToggleCard,
+    messages,
+    commonMessages
   } = props;
   const isValidActive = vote === 'white';
   const isPaused = !running;
@@ -163,13 +192,17 @@ function CenterLayout(props: {
   return (
     <main className="flex min-h-screen flex-col gap-6 bg-slate-950 px-5 py-6 text-white">
       <header className="flex flex-col items-center gap-1 text-xs uppercase tracking-[0.5em] text-slate-400">
-        <span>Árbitro Central</span>
-        <span>Status: {status}</span>
+        <span>{messages.center.title}</span>
+        <span>
+          {commonMessages.labels.status}: {status}
+        </span>
       </header>
 
       <section className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-[#1F232A] p-5 shadow-xl">
         <div className="flex flex-col items-center gap-2">
-          <span className="text-xs uppercase tracking-[0.4em] text-slate-400">Tempo oficial</span>
+          <span className="text-xs uppercase tracking-[0.4em] text-slate-400">
+            {messages.center.timeLabel}
+          </span>
           <div className="text-4xl font-bold text-white">{formatSeconds(timerSeconds)}</div>
         </div>
         <div className="flex w-full flex-wrap justify-center gap-3">
@@ -179,7 +212,7 @@ function CenterLayout(props: {
             }`}
             onClick={onStart}
           >
-            Start
+            {messages.center.start}
           </button>
           <button
             className={`flex-1 transform rounded-xl bg-amber-400 px-4 py-3 font-semibold text-slate-900 transition duration-150 active:scale-95 active:brightness-95 ${
@@ -187,13 +220,13 @@ function CenterLayout(props: {
             }`}
             onClick={onPause}
           >
-            Pause
+            {messages.center.pause}
           </button>
           <button
             className="flex-1 transform rounded-xl bg-red-500 px-4 py-3 font-semibold text-white transition duration-150 active:scale-95 active:brightness-95"
             onClick={onReset}
           >
-            Reset
+            {messages.center.reset}
           </button>
         </div>
       </section>
@@ -205,7 +238,7 @@ function CenterLayout(props: {
           }`}
           onClick={onValid}
         >
-          Válido
+          {messages.center.valid}
         </button>
         {CARD_OPTIONS.map((option) => {
           const isActive = cards.includes(option.value);
@@ -234,16 +267,20 @@ function SideLayout(props: {
   cards: CardValue[];
   onValid: () => void;
   onToggleCard: (card: Exclude<CardValue, null>) => void;
+  messages: Messages['referee'];
+  commonMessages: Messages['common'];
 }) {
-  const { judge, status, vote, cards, onValid, onToggleCard } = props;
+  const { judge, status, vote, cards, onValid, onToggleCard, messages, commonMessages } = props;
   const isValidActive = vote === 'white';
-  const sideLabel = judge === 'left' ? 'Árbitro Lateral Esquerdo' : 'Árbitro Lateral Direito';
+  const sideLabel = judge === 'left' ? messages.side.leftTitle : messages.side.rightTitle;
 
   return (
     <main className="flex min-h-screen flex-col gap-6 bg-slate-950 px-6 py-8 text-slate-100">
       <header className="flex flex-col items-center gap-1 text-center text-xs uppercase tracking-[0.4em] text-slate-400">
         <span>{sideLabel}</span>
-        <span>Status: {status}</span>
+        <span>
+          {commonMessages.labels.status}: {status}
+        </span>
       </header>
 
       <section className="flex flex-col gap-4">
@@ -254,7 +291,7 @@ function SideLayout(props: {
           onClick={onValid}
           disabled={status !== 'connected'}
         >
-          Válido
+          {messages.side.valid}
         </button>
         {CARD_OPTIONS.map((option) => {
           const isActive = cards.includes(option.value);
@@ -276,34 +313,25 @@ function SideLayout(props: {
   );
 }
 
-function MissingRefCredentials({ judge }: { judge: Judge }) {
+function MissingRefCredentials({ judge, messages }: { judge: Judge; messages: Messages['referee'] }) {
+  const description = messages.missing.description.replace('{judge}', judge);
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-950 px-6 py-12 text-center text-white">
-      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">Console indisponível</h1>
-      <p className="max-w-md text-sm text-slate-300">
-        Utilize um QR Code atualizado para acessar `{judge}` com sala e token válidos.
-      </p>
+      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">
+        {messages.missing.title}
+      </h1>
+      <p className="max-w-md text-sm text-slate-300">{description}</p>
     </main>
   );
 }
 
-function StatusBanner({ message }: { message: string }) {
-  const text = translateError(message);
+function StatusBanner({ message, errors }: { message: string; errors: Record<string, string> }) {
+  const text = errors[message] ?? message;
   return (
     <div className="fixed left-1/2 top-6 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-white/15 px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white">
       {text}
     </div>
   );
-}
-
-function translateError(message: string) {
-  const map: Record<string, string> = {
-    invalid_token: 'Token inválido ou revogado. Solicite um novo QR Code.',
-    room_not_found: 'Sala não encontrada. Verifique o QR Code.',
-    not_authorised: 'Acesso não autorizado.',
-    request_failed: 'Falha ao conectar ao servidor.'
-  };
-  return map[message] ?? message;
 }
 
 function useHapticFeedback() {

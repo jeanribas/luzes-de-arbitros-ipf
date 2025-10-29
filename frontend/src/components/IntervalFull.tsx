@@ -2,7 +2,6 @@ import clsx from 'clsx';
 import { MutableRefObject, useEffect, useRef } from 'react';
 
 const WARNING_OFFSET_MS = 3 * 60 * 1000;
-const INTERVAL_END_MESSAGE = 'TROCA DE PEDIDAS ENCERRADA';
 const FINAL_BEEP_SECONDS = 10;
 const PRIMARY_FINAL_BEEP_SECONDS = 10;
 
@@ -10,9 +9,14 @@ interface IntervalFullProps {
   intervalMs: number;
   configuredMs: number;
   running: boolean;
+  labels: {
+    primaryLabel: string;
+    secondaryLabel: string;
+    endMessage: string;
+  };
 }
 
-export function IntervalFull({ intervalMs, configuredMs, running }: IntervalFullProps) {
+export function IntervalFull({ intervalMs, configuredMs, running, labels }: IntervalFullProps) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const finishedRef = useRef(false);
   const primaryFinishedRef = useRef(false);
@@ -111,14 +115,14 @@ export function IntervalFull({ intervalMs, configuredMs, running }: IntervalFull
   const primary = formatHms(Math.max(0, intervalMs));
   const secondaryMs = Math.max(0, intervalMs - WARNING_OFFSET_MS);
   const showEndMessage = timeToSwap <= -1000;
-  const secondary = showEndMessage ? INTERVAL_END_MESSAGE : formatHms(secondaryMs);
+  const secondary = showEndMessage ? labels.endMessage : formatHms(secondaryMs);
   const secondaryActive = secondaryMs > 0 && running && !showEndMessage;
 
   return (
     <div className="mx-auto flex w-full max-w-[min(92vw,1200px)] flex-col items-center gap-20 text-white py-12">
       <div className="relative flex flex-col items-center gap-8 rounded-[48px] border border-white/10 bg-black/70 px-12 py-10 shadow-[0_22px_70px_rgba(0,0,0,0.6)]">
         <span className="absolute -top-6 left-1/2 -translate-x-1/2 skew-x-[-12deg] rounded-md bg-white px-7 py-2 text-[clamp(0.6rem,0.9vw,2rem)] font-black uppercase tracking-[0.45em] text-slate-900">
-          <span className="block skew-x-[12deg]">Próximo Round</span>
+          <span className="block skew-x-[12deg] whitespace-nowrap">{labels.primaryLabel}</span>
         </span>
         <span
           className={clsx(
@@ -132,7 +136,7 @@ export function IntervalFull({ intervalMs, configuredMs, running }: IntervalFull
 
       <div className="relative flex flex-col items-center gap-8 rounded-[48px] border border-white/10 bg-black/70 px-12 py-10 shadow-[0_22px_70px_rgba(0,0,0,0.6)]">
         <span className="absolute -top-6 left-1/2 -translate-x-1/2 skew-x-[-12deg] rounded-md bg-white px-7 py-2 text-[clamp(0.6rem,0.9vw,2rem)] font-black uppercase tracking-[.45em] text-slate-900">
-          <span className="block skew-x-[12deg]">Troca das pedidas</span>
+          <span className="block skew-x-[12deg] whitespace-nowrap">{labels.secondaryLabel}</span>
         </span>
         <span
           className={clsx(
@@ -152,9 +156,7 @@ export function IntervalFull({ intervalMs, configuredMs, running }: IntervalFull
 
 function formatHms(ms: number) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600)
-    .toString()
-    .padStart(2, '0');
+  const hours = Math.floor(totalSeconds / 3600).toString();
   const minutes = Math.floor((totalSeconds % 3600) / 60)
     .toString()
     .padStart(2, '0');

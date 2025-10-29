@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 interface FullscreenButtonProps {
   className?: string;
+  enterLabel?: string;
+  exitLabel?: string;
 }
 
 function isFullscreenActive() {
@@ -12,7 +14,7 @@ function isFullscreenActive() {
   return Boolean(document.fullscreenElement);
 }
 
-export function FullscreenButton({ className }: FullscreenButtonProps) {
+export function FullscreenButton({ className, enterLabel, exitLabel }: FullscreenButtonProps) {
   const [isActive, setIsActive] = useState(isFullscreenActive());
 
   const toggle = useCallback(async () => {
@@ -39,7 +41,7 @@ export function FullscreenButton({ className }: FullscreenButtonProps) {
         className
       )}
     >
-      {isActive ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+      {isActive ? exitLabel ?? 'Exit Fullscreen' : enterLabel ?? 'Enter Fullscreen'}
     </button>
   );
 }

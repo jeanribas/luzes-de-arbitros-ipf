@@ -11,6 +11,7 @@ import {
   type AppState,
   type CardValue,
   type Judge,
+  type Locale,
   type VoteValue
 } from './state.js';
 
@@ -54,6 +55,10 @@ type IntervalPayload = {
   seconds?: number;
 };
 
+type LocalePayload = {
+  locale: Locale;
+};
+
 type AckResponse = { ok: true } | { error: string };
 
 type ClientToServerEvents = {
@@ -65,10 +70,12 @@ type ClientToServerEvents = {
   'admin:clear': (ack?: (response: AckResponse) => void) => void;
   'timer:command': (payload: TimerPayload, ack?: (response: AckResponse) => void) => void;
   'interval:command': (payload: IntervalPayload, ack?: (response: AckResponse) => void) => void;
+  'locale:change': (payload: LocalePayload, ack?: (response: AckResponse) => void) => void;
 };
 
 type ServerToClientEvents = {
   'state:update': (snapshot: AppState) => void;
+  'locale:change': (locale: Locale) => void;
 };
 
 type InterServerEvents = Record<string, never>;
@@ -86,6 +93,8 @@ interface SocketIOPluginOptions {
 type SocketIOPlugin = FastifyPluginCallback<SocketIOPluginOptions>;
 
 const ROOM_CHANNEL_PREFIX = 'room:';
+
+const SUPPORTED_LOCALES: Locale[] = ['pt-BR', 'en-US', 'es-ES'];
 
 function roomChannel(roomId: string) {
   return `${ROOM_CHANNEL_PREFIX}${roomId}`;
@@ -357,6 +366,23 @@ export async function createServer() {
       ack?.({ ok: true });
     });
 
+    socket.on('locale:change', (payload, ack) => {
+      const adminContext = ensureAdminContext(socket, roomManager);
+      if (!adminContext.ok) {
+        ack?.({ error: adminContext.error });
+        return;
+      }
+
+      if (!payload || !SUPPORTED_LOCALES.includes(payload.locale)) {
+        ack?.({ error: 'invalid_payload' });
+        return;
+      }
+
+      adminContext.state.setLocale(payload.locale);
+      io.to(roomChannel(adminContext.roomId)).emit('locale:change', payload.locale);
+      ack?.({ ok: true });
+    });
+
     socket.on('disconnect', (reason: string) => {
       app.log.info({ event: 'disconnect', role: socket.data.role, reason });
       const { roomId, judgeRole } = socket.data;
@@ -397,7 +423,7 @@ function ensureAdminContext(socket: AppSocket, roomManager: RoomManager) {
   if (!state) {
     return { ok: false as const, error: 'room_not_found' };
   }
-  return { ok: true as const, state };
+  return { ok: true as const, state, roomId };
 }
 
 function ensureTimerControllerContext(socket: AppSocket, roomManager: RoomManager) {

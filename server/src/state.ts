@@ -3,6 +3,8 @@ export type VoteValue = 'white' | 'red' | null;
 export type CardValue = 1 | 2 | 3 | null;
 export type Phase = 'idle' | 'revealed';
 
+export type Locale = 'pt-BR' | 'en-US' | 'es-ES';
+
 export interface AppState {
   phase: Phase;
   votes: Record<Judge, VoteValue>;
@@ -14,6 +16,7 @@ export interface AppState {
   intervalConfiguredMs: number;
   intervalRunning: boolean;
   intervalVisible: boolean;
+  locale: Locale;
 }
 
 export interface RoomSnapshot extends AppState {}
@@ -21,6 +24,7 @@ export interface RoomSnapshot extends AppState {}
 const DEFAULT_TIMER_MS = 60_000;
 const AUTO_CLEAR_MS = 10_000;
 const INTERVAL_TICK_RATE_MS = 200;
+const DEFAULT_LOCALE: Locale = 'pt-BR';
 
 export class RoomState {
   private state: AppState & { lastTickAt?: number } = {
@@ -45,7 +49,8 @@ export class RoomState {
     intervalMs: 0,
     intervalConfiguredMs: 0,
     intervalRunning: false,
-    intervalVisible: false
+    intervalVisible: false,
+    locale: DEFAULT_LOCALE
   };
 
   private tickInterval: NodeJS.Timeout | null = null;
@@ -77,7 +82,8 @@ export class RoomState {
       intervalMs: this.state.intervalMs,
       intervalConfiguredMs: this.state.intervalConfiguredMs,
       intervalRunning: this.state.intervalRunning,
-      intervalVisible: this.state.intervalVisible
+      intervalVisible: this.state.intervalVisible,
+      locale: this.state.locale
     };
   }
 
@@ -202,6 +208,12 @@ export class RoomState {
 
   setIntervalVisible(visible: boolean) {
     this.state.intervalVisible = visible;
+    this.notify();
+  }
+
+  setLocale(locale: Locale) {
+    if (this.state.locale === locale) return;
+    this.state.locale = locale;
     this.notify();
   }
 

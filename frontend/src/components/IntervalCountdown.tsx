@@ -6,9 +6,13 @@ interface IntervalCountdownProps {
   intervalMs: number;
   configuredMs: number;
   running: boolean;
+  labels: {
+    primaryLabel: string;
+    warningLabel: string;
+  };
 }
 
-export function IntervalCountdown({ intervalMs, configuredMs, running }: IntervalCountdownProps) {
+export function IntervalCountdown({ intervalMs, configuredMs, running, labels }: IntervalCountdownProps) {
   if (configuredMs <= 0 && intervalMs <= 0) {
     return null;
   }
@@ -20,14 +24,14 @@ export function IntervalCountdown({ intervalMs, configuredMs, running }: Interva
   return (
     <div className="w-full max-w-[min(90vw,1100px)] overflow-hidden rounded-[32px] border border-white/10 bg-[#0B0D11]/85 backdrop-blur-md text-white shadow-[0_18px_60px_rgba(0,0,0,0.5)]">
       <Section
-        label="Intervalo Programado"
+        label={labels.primaryLabel}
         value={primaryDisplay}
         intent="primary"
         running={running}
       />
       <div className="h-px bg-white/5" />
       <Section
-        label="Aviso (-3 min)"
+        label={labels.warningLabel}
         value={secondaryDisplay}
         intent="warning"
         running={running && secondaryMs > 0}

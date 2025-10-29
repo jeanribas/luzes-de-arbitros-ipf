@@ -9,7 +9,7 @@
 
 ## 2. Configurar Display
 
-1. Acesse `https://app.seu-dominio/?roomId=PLAT1&pin=XXXX` na TV/monitor.
+1. Acesse `https://app.seu-dominio/display?roomId=PLAT1&pin=XXXX` na TV/monitor.
 2. Opcional: coloque em tela cheia (`F` ou botão “Toggle Fullscreen”).
 3. Ajuste o zoom pelo menu flutuante (botão hambúrguer no canto inferior esquerdo). O timer aparece 15% maior por padrão na versão 1.1.
 
