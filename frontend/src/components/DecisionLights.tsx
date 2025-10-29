@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import { AppState, CardValue, Judge, VoteValue } from '@/types/state';
@@ -25,9 +25,6 @@ export function DecisionLights({
   const [delayedCards, setDelayedCards] = useState(state.cards);
   const [delayedPhase, setDelayedPhase] = useState(state.phase);
 
-  const votesKey = useMemo(() => JSON.stringify(state.votes), [state.votes]);
-  const cardsKey = useMemo(() => JSON.stringify(state.cards), [state.cards]);
-
   useEffect(() => {
     if (!delayReveal) {
       setDelayedVotes(state.votes);
@@ -42,7 +39,7 @@ export function DecisionLights({
       setDelayedPhase(state.phase);
     }, 1500);
     return () => window.clearTimeout(timer);
-  }, [votesKey, cardsKey, state.phase, delayReveal]);
+  }, [state.votes, state.cards, state.phase, delayReveal]);
 
   return (
     <div className="flex w-full max-w-6xl flex-col items-center gap-10">
