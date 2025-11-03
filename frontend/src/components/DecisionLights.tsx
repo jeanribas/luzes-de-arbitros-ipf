@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import { AppState, CardValue, Judge, VoteValue } from '@/types/state';
@@ -24,22 +24,31 @@ export function DecisionLights({
   const [delayedVotes, setDelayedVotes] = useState(state.votes);
   const [delayedCards, setDelayedCards] = useState(state.cards);
   const [delayedPhase, setDelayedPhase] = useState(state.phase);
+  const voteSignature = `${state.votes.left ?? 'null'}|${state.votes.center ?? 'null'}|${state.votes.right ?? 'null'}`;
+  const cardsSignature = [
+    state.cards.left.join(','),
+    state.cards.center.join(','),
+    state.cards.right.join(',')
+  ].join('|');
+  // Signatures ensure we only react when underlying vote/card values change, not on timer ticks.
+  const stableVotes = useMemo(() => state.votes, [voteSignature]);
+  const stableCards = useMemo(() => state.cards, [cardsSignature]);
 
   useEffect(() => {
     if (!delayReveal) {
-      setDelayedVotes(state.votes);
-      setDelayedCards(state.cards);
+      setDelayedVotes(stableVotes);
+      setDelayedCards(stableCards);
       setDelayedPhase(state.phase);
       return;
     }
 
     const timer = window.setTimeout(() => {
-      setDelayedVotes(state.votes);
-      setDelayedCards(state.cards);
+      setDelayedVotes(stableVotes);
+      setDelayedCards(stableCards);
       setDelayedPhase(state.phase);
     }, 1500);
     return () => window.clearTimeout(timer);
-  }, [state.votes, state.cards, state.phase, delayReveal]);
+  }, [stableVotes, stableCards, state.phase, delayReveal]);
 
   return (
     <div className="flex w-full max-w-6xl flex-col items-center gap-10">
