@@ -13,6 +13,8 @@ Complete IPF referee light stack for training sessions and small events. Version
 
 Each session has a `roomId` and an admin PIN. The panel automatically generates referee QR codes and direct links for the display/legend, and it can rotate tokens if needed.
 
+> Recommendation: run the main display on a Full HD screen (1920x1080) to preserve the intended layout and spacing.
+
 ## What’s new in 1.1
 
 - Redesigned admin dashboard with descriptive cards, QR code modal with token-rotation confirmation, and quick shortcuts (Display/Legend) to switch between views

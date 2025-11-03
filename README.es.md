@@ -13,6 +13,8 @@ Plataforma completa de luces IPF para entrenamientos y eventos pequeños. La ver
 
 Cada sesión tiene `roomId` y PIN administrativo. El panel genera automáticamente los códigos QR de los árbitros y enlaces directos para la pantalla/leyenda, además de permitir rotar los tokens cuando sea necesario.
 
+> Recomendación: utilice la pantalla principal en monitores Full HD (1920x1080) para conservar el diseño y las proporciones originales.
+
 ## Novedades de la 1.1
 
 - Rediseño del panel admin con tarjetas descriptivas, modal de códigos QR con confirmación para rotar tokens y accesos rápidos (Display/Legend) para alternar entre vistas
