@@ -1,5 +1,7 @@
 # Referee Lights 1.1
 
+![release](https://img.shields.io/github/v/release/jeanribas/luzes-de-arbitros-ipf?display_name=tag&sort=semver) ![visitors](https://visitor-badge.laobi.icu/badge?page_id=jeanribas.luzes-de-arbitros-ipf) ![license](https://img.shields.io/github/license/jeanribas/luzes-de-arbitros-ipf)
+
 Português · [English](README.en.md) · [Español](README.es.md)
 
 Plataforma completa de luzes IPF para treinos e eventos menores. A versão **1.1** consolida o fluxo multi-sessão com PIN administrativo, QR Codes dinâmicos e a nova tela de legenda. Quatro interfaces web compartilham o mesmo estado em tempo real via Socket.IO e podem ser abertas em diferentes dispositivos:
