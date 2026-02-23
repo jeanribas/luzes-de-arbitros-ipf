@@ -43,7 +43,7 @@ export function DecisionLights({
       ? 'flex w-full max-w-none flex-col items-center gap-10'
       : 'flex w-full max-w-6xl flex-col items-center gap-10';
   const rowClassName = isLegendSize
-    ? 'flex w-full flex-row flex-wrap items-end justify-center gap-[clamp(0.75rem,2.5vw,2rem)]'
+    ? 'flex w-full flex-row flex-wrap items-start justify-center gap-[clamp(0.75rem,2.5vw,2rem)]'
     : isStageSize
       ? 'flex flex-row items-end justify-center gap-24'
       : 'flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-center sm:gap-32';
