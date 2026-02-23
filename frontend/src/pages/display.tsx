@@ -6,6 +6,7 @@ import { FullscreenButton } from '@/components/FullscreenButton';
 import TimerDisplay from '@/components/TimerDisplay';
 import IntervalCountdown from '@/components/IntervalCountdown';
 import IntervalFull from '@/components/IntervalFull';
+import { useEasyLifterBridge } from '@/hooks/useEasyLifterBridge';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -14,6 +15,7 @@ import { Seo } from '@/components/Seo';
 
 const BASE_SCALE = 0.9;
 const DEFAULT_ZOOM = 1;
+const DEFAULT_EASYLIFTER_ORIGIN = 'https://easyliftersoftware.com';
 
 export default function DisplayPage() {
   const router = useRouter();
@@ -26,10 +28,30 @@ export default function DisplayPage() {
   const sectionLabelTrackingClass = isSpanishLocale ? 'tracking-[0.26em]' : 'tracking-[0.32em]';
   const roomId = typeof router.query.roomId === 'string' ? router.query.roomId : undefined;
   const adminPin = typeof router.query.pin === 'string' ? router.query.pin : undefined;
-  const { state, error } = useRoomSocket('display', {
+  const externalUrl = readQueryValue(router.query.externalUrl);
+  const externalMeet = readQueryValue(router.query.externalMeet) ?? readQueryValue(router.query.meet);
+  const externalOrigin = readQueryValue(router.query.externalOrigin);
+
+  const externalSource = useMemo(
+    () => resolveEasyLifterSource(externalUrl, externalMeet, externalOrigin),
+    [externalMeet, externalOrigin, externalUrl]
+  );
+
+  const isExternalMode = externalSource.enabled;
+
+  const { state: roomState, error: roomError } = useRoomSocket('display', isExternalMode ? {} : {
     roomId,
     adminPin
   });
+
+  const { state: externalState, error: externalError } = useEasyLifterBridge({
+    enabled: isExternalMode && !externalSource.error,
+    meetCode: externalSource.meetCode,
+    origin: externalSource.origin
+  });
+
+  const state = isExternalMode ? externalState : roomState;
+  const error = isExternalMode ? externalSource.error ?? externalError : roomError;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
@@ -106,11 +128,17 @@ export default function DisplayPage() {
 
   const resetZoom = useCallback(() => setZoom(DEFAULT_ZOOM), []);
 
-  if (!roomId || !adminPin) {
+  if (isExternalMode && externalSource.error) {
+    return <MissingExternalSourceConfig message={externalSource.error} />;
+  }
+
+  if (!isExternalMode && (!roomId || !adminPin)) {
     return <MissingDisplayCredentials messages={displayMessages} />;
   }
 
-  const adminLink = `/admin?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`;
+  const adminLink = roomId && adminPin
+    ? `/admin?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`
+    : '/admin';
 
   return (
     <>
@@ -143,12 +171,14 @@ export default function DisplayPage() {
                     enterLabel={displayMessages.menu.fullscreenEnter}
                     exitLabel={displayMessages.menu.fullscreenExit}
                   />
-                  <Link
-                    href={adminLink}
-                    className={`inline-flex w-full items-center justify-center rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase ${buttonTrackingClass} text-white transition hover:bg-white/25`}
-                  >
-                    {displayMessages.menu.goToAdmin}
-                  </Link>
+                  {!isExternalMode && (
+                    <Link
+                      href={adminLink}
+                      className={`inline-flex w-full items-center justify-center rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase ${buttonTrackingClass} text-white transition hover:bg-white/25`}
+                    >
+                      {displayMessages.menu.goToAdmin}
+                    </Link>
+                  )}
                 </section>
 
                 <section className="flex flex-col gap-3 border-t border-white/10 pt-4">
@@ -292,4 +322,85 @@ function MissingDisplayCredentials({ messages }: { messages: Messages['display']
       </Link>
     </main>
   );
+}
+
+function MissingExternalSourceConfig({ message }: { message: string }) {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 py-12 text-center text-white">
+      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">Fonte externa inválida</h1>
+      <p className="max-w-xl text-sm text-white/70">{message}</p>
+      <p className="max-w-xl text-xs text-white/50">
+        Exemplo: <code>/display?externalUrl=https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53</code>
+      </p>
+    </main>
+  );
+}
+
+function readQueryValue(value: string | string[] | undefined): string | undefined {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return undefined;
+}
+
+function resolveEasyLifterSource(
+  externalUrl?: string,
+  externalMeet?: string,
+  externalOrigin?: string
+): {
+  enabled: boolean;
+  origin?: string;
+  meetCode?: string;
+  error: string | null;
+} {
+  const hasExternalInput = Boolean(
+    (externalUrl && externalUrl.trim()) ||
+    (externalMeet && externalMeet.trim()) ||
+    (externalOrigin && externalOrigin.trim())
+  );
+
+  if (!hasExternalInput) {
+    return { enabled: false, error: null };
+  }
+
+  let meetCode = externalMeet?.trim();
+  let origin = externalOrigin?.trim();
+
+  if (externalUrl && externalUrl.trim()) {
+    let parsed: URL;
+    try {
+      parsed = new URL(externalUrl.trim());
+    } catch {
+      return {
+        enabled: true,
+        error: 'A URL externa está inválida. Use um endereço completo com http:// ou https://.'
+      };
+    }
+
+    if (!origin) {
+      origin = parsed.origin;
+    }
+    if (!meetCode) {
+      const meet = parsed.searchParams.get('meet');
+      meetCode = meet?.trim() || undefined;
+    }
+  }
+
+  if (!origin) {
+    origin = DEFAULT_EASYLIFTER_ORIGIN;
+  }
+
+  if (!meetCode) {
+    return {
+      enabled: true,
+      origin,
+      error: 'Informe o código da competição em `meet` (ex.: `?meet=3NJH7Y53`) ou via `externalMeet`.'
+    };
+  }
+
+  return {
+    enabled: true,
+    origin,
+    meetCode,
+    error: null
+  };
 }

@@ -64,6 +64,19 @@ type AdminMessages = {
     title: string;
     generatingLinks: string;
   };
+  integration: {
+    title: string;
+    description: string;
+    urlLabel: string;
+    urlPlaceholder: string;
+    save: string;
+    clear: string;
+    activeBadge: string;
+    saved: string;
+    cleared: string;
+    invalidUrl: string;
+    missingMeet: string;
+  };
   timer: {
     title: string;
     start: string;
@@ -272,6 +285,19 @@ const MESSAGES: Record<AppLocale, Messages> = {
         title: 'Administração da Plataforma',
         generatingLinks: 'Gerando novos links...'
       },
+      integration: {
+        title: 'Integrações',
+        description: 'Defina a URL externa para alimentar display e legenda. Ao salvar, os botões abaixo abrirão no modo integração.',
+        urlLabel: 'URL externa',
+        urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
+        save: 'Salvar integração',
+        clear: 'Remover',
+        activeBadge: 'Integração ativa',
+        saved: 'Integração atualizada.',
+        cleared: 'Integração removida.',
+        invalidUrl: 'URL inválida. Use um endereço completo com http:// ou https://.',
+        missingMeet: 'A URL deve conter o parâmetro `meet`.'
+      },
       timer: {
         title: 'Timer',
         start: 'Iniciar',
@@ -474,6 +500,19 @@ const MESSAGES: Record<AppLocale, Messages> = {
         title: 'Platform Admin',
         generatingLinks: 'Generating new links...'
       },
+      integration: {
+        title: 'Integrations',
+        description: 'Set an external URL to feed display and legend. After saving, the buttons below will open in integration mode.',
+        urlLabel: 'External URL',
+        urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
+        save: 'Save integration',
+        clear: 'Remove',
+        activeBadge: 'Integration active',
+        saved: 'Integration updated.',
+        cleared: 'Integration removed.',
+        invalidUrl: 'Invalid URL. Use a full address with http:// or https://.',
+        missingMeet: 'The URL must include the `meet` parameter.'
+      },
       timer: {
         title: 'Timer',
         start: 'Start',
@@ -675,6 +714,19 @@ const MESSAGES: Record<AppLocale, Messages> = {
       header: {
         title: 'Administración de la plataforma',
         generatingLinks: 'Generando nuevos enlaces...'
+      },
+      integration: {
+        title: 'Integraciones',
+        description: 'Define una URL externa para alimentar display y leyenda. Al guardar, los botones de abajo abrirán en modo integración.',
+        urlLabel: 'URL externa',
+        urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
+        save: 'Guardar integración',
+        clear: 'Quitar',
+        activeBadge: 'Integración activa',
+        saved: 'Integración actualizada.',
+        cleared: 'Integración eliminada.',
+        invalidUrl: 'URL inválida. Usa una dirección completa con http:// o https://.',
+        missingMeet: 'La URL debe incluir el parámetro `meet`.'
       },
       timer: {
         title: 'Temporizador',

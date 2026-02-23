@@ -18,6 +18,8 @@ interface AdminPageProps {
   networkIps: string[];
 }
 
+const INTEGRATION_STORAGE_KEY_PREFIX = 'admin:integrationUrl';
+
 const previewLayout = {
   gapClass: 'gap-0',
   lights: { scale: 0.7, maxWidth: 'min(88vw, 1200px)' },
@@ -75,7 +77,15 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
 
   const [qrMenuOpen, setQrMenuOpen] = useState(false);
   const [appOrigin, setAppOrigin] = useState('');
+  const [integrationInput, setIntegrationInput] = useState('');
+  const [integrationUrl, setIntegrationUrl] = useState('');
+  const [integrationError, setIntegrationError] = useState<string | null>(null);
+  const [integrationNotice, setIntegrationNotice] = useState<string | null>(null);
   const configuredQrOrigin = process.env.NEXT_PUBLIC_QR_ORIGIN?.trim();
+  const integrationStorageKey = useMemo(
+    () => `${INTEGRATION_STORAGE_KEY_PREFIX}:${roomId ?? 'default'}`,
+    [roomId]
+  );
 
   const credentialsReady = Boolean(router.isReady && roomId && adminPin);
   const roomReady = Boolean(roomAccess && roomAccess.roomId === roomId);
@@ -130,6 +140,15 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
       setAppOrigin(`${protocolWithSlashes}${host}${port}`);
     }
   }, [networkIps, configuredQrOrigin]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem(integrationStorageKey) ?? '';
+    setIntegrationUrl(stored);
+    setIntegrationInput(stored);
+    setIntegrationError(null);
+    setIntegrationNotice(null);
+  }, [integrationStorageKey]);
 
 
   const socketOptions = useMemo(() => {
@@ -235,13 +254,9 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
     ];
   }, [adminMessages.qrMenu.targets.center, adminMessages.qrMenu.targets.left, adminMessages.qrMenu.targets.right, appOrigin, roomAccess, roomId]);
 
-  const displayLink = roomId && adminPin
-    ? `/display?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`
-    : '/display';
+  const displayLink = buildDisplayOrLegendHref('/display', roomId, adminPin, integrationUrl);
 
-  const legendLink = roomId && adminPin
-    ? `/legend?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`
-    : '/legend';
+  const legendLink = buildDisplayOrLegendHref('/legend', roomId, adminPin, integrationUrl);
 
   const roomErrorMessage = formatApiError(roomErrorCode, commonMessages.errors);
   const socketErrorMessage = formatApiError(socketError, commonMessages.errors);
@@ -302,6 +317,58 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
       setTokenRefreshing(false);
     }
   }, [roomId, adminPin]);
+
+  const handleSaveIntegration = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const rawValue = integrationInput.trim();
+
+    if (!rawValue) {
+      window.localStorage.removeItem(integrationStorageKey);
+      setIntegrationUrl('');
+      setIntegrationInput('');
+      setIntegrationError(null);
+      setIntegrationNotice(adminMessages.integration.cleared);
+      return;
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(rawValue);
+    } catch {
+      setIntegrationError(adminMessages.integration.invalidUrl);
+      setIntegrationNotice(null);
+      return;
+    }
+
+    if (!parsed.searchParams.get('meet')) {
+      setIntegrationError(adminMessages.integration.missingMeet);
+      setIntegrationNotice(null);
+      return;
+    }
+
+    const normalized = parsed.toString();
+    window.localStorage.setItem(integrationStorageKey, normalized);
+    setIntegrationUrl(normalized);
+    setIntegrationInput(normalized);
+    setIntegrationError(null);
+    setIntegrationNotice(adminMessages.integration.saved);
+  }, [
+    adminMessages.integration.cleared,
+    adminMessages.integration.invalidUrl,
+    adminMessages.integration.missingMeet,
+    adminMessages.integration.saved,
+    integrationInput,
+    integrationStorageKey
+  ]);
+
+  const handleClearIntegration = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.removeItem(integrationStorageKey);
+    setIntegrationUrl('');
+    setIntegrationInput('');
+    setIntegrationError(null);
+    setIntegrationNotice(adminMessages.integration.cleared);
+  }, [adminMessages.integration.cleared, integrationStorageKey]);
 
   const pageHead = (
     <Seo
@@ -570,6 +637,50 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
                 {adminMessages.interval.note}
               </p>
             </div>
+
+            <div className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-[#0F141F] p-5">
+              <h3 className={`text-xs font-semibold uppercase ${cardHeadingTracking} text-slate-300`}>
+                {adminMessages.integration.title}
+              </h3>
+              <p className="text-xs text-slate-400">{adminMessages.integration.description}</p>
+              <label className="flex flex-col gap-1">
+                <span className={`text-[10px] uppercase ${labelTracking} text-slate-400`}>
+                  {adminMessages.integration.urlLabel}
+                </span>
+                <input
+                  type="url"
+                  value={integrationInput}
+                  onChange={(event) => {
+                    setIntegrationInput(event.target.value);
+                    if (integrationError) setIntegrationError(null);
+                    if (integrationNotice) setIntegrationNotice(null);
+                  }}
+                  placeholder={adminMessages.integration.urlPlaceholder}
+                  className="min-h-[44px] rounded border border-slate-700 bg-slate-950 px-3 text-sm font-medium text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <button
+                  className={`${controlButtonBase} bg-slate-200 text-slate-900 hover:bg-slate-100`}
+                  onClick={handleSaveIntegration}
+                >
+                  {adminMessages.integration.save}
+                </button>
+                <button
+                  className={`${controlButtonBase} bg-slate-700 text-white hover:bg-slate-600`}
+                  onClick={handleClearIntegration}
+                >
+                  {adminMessages.integration.clear}
+                </button>
+              </div>
+              {integrationError && <span className="text-xs text-rose-300">{integrationError}</span>}
+              {integrationNotice && <span className="text-xs text-emerald-300">{integrationNotice}</span>}
+              {integrationUrl && (
+                <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-100">
+                  {adminMessages.integration.activeBadge}
+                </div>
+              )}
+            </div>
           </aside>
 
           <section className="relative flex min-h-[60vh] flex-col items-center justify-center rounded-3xl border border-slate-800 bg-[#0B1019] p-6 shadow-2xl">
@@ -595,6 +706,11 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
               <p className="text-sm text-slate-400">{adminMessages.preview.waiting}</p>
             )}
             <div className="pointer-events-none absolute bottom-6 right-6 flex flex-row items-center gap-3">
+              {integrationUrl && (
+                <span className="pointer-events-auto inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-100">
+                  {adminMessages.integration.activeBadge}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => setQrMenuOpen(true)}
@@ -887,6 +1003,22 @@ function buildRefHref(origin: string, roomId: string, token: string, judge: Judg
   const encodedRoom = encodeURIComponent(roomId);
   const encodedToken = encodeURIComponent(token);
   return `${origin}/ref/${judge}?roomId=${encodedRoom}&token=${encodedToken}`;
+}
+
+function buildDisplayOrLegendHref(
+  path: '/display' | '/legend',
+  roomId: string | undefined,
+  adminPin: string | undefined,
+  integrationUrl: string
+) {
+  const trimmedIntegration = integrationUrl.trim();
+  if (trimmedIntegration) {
+    return `${path}?externalUrl=${encodeURIComponent(trimmedIntegration)}`;
+  }
+  if (roomId && adminPin) {
+    return `${path}?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`;
+  }
+  return path;
 }
 
 function normalizeConfiguredOrigin(value: string | undefined, defaultProtocol: string) {

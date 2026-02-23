@@ -2,22 +2,47 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 
 import { DecisionLights } from '@/components/DecisionLights';
+import { useEasyLifterBridge } from '@/hooks/useEasyLifterBridge';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { getMessages } from '@/lib/i18n/messages';
 import { Seo } from '@/components/Seo';
 
+const DEFAULT_EASYLIFTER_ORIGIN = 'https://easyliftersoftware.com';
+
 export default function LegendPage() {
   const router = useRouter();
   const roomId = typeof router.query.roomId === 'string' ? router.query.roomId.toUpperCase() : undefined;
   const adminPin = typeof router.query.pin === 'string' ? router.query.pin : undefined;
+  const externalUrl = readQueryValue(router.query.externalUrl);
+  const externalMeet = readQueryValue(router.query.externalMeet) ?? readQueryValue(router.query.meet);
+  const externalOrigin = readQueryValue(router.query.externalOrigin);
   const locale = typeof router.locale === 'string' ? router.locale : undefined;
   const messages = useMemo(() => getMessages(locale), [locale]);
   const legendMessages = messages.legend;
   const displayMessages = messages.display;
   const commonMessages = messages.common;
 
-  const { state, status, error: socketError } = useRoomSocket('display', { roomId, adminPin });
+  const externalSource = useMemo(
+    () => resolveEasyLifterSource(externalUrl, externalMeet, externalOrigin),
+    [externalMeet, externalOrigin, externalUrl]
+  );
+
+  const isExternalMode = externalSource.enabled;
+
+  const { state: roomState, status: roomStatus, error: roomSocketError } = useRoomSocket(
+    'display',
+    isExternalMode ? {} : { roomId, adminPin }
+  );
+  const { state: externalState, status: externalStatus, error: externalError } = useEasyLifterBridge({
+    enabled: isExternalMode && !externalSource.error,
+    meetCode: externalSource.meetCode,
+    origin: externalSource.origin
+  });
+
+  const state = isExternalMode ? externalState : roomState;
+  const status = isExternalMode ? externalStatus : roomStatus;
+  const socketError = isExternalMode ? externalSource.error ?? externalError : roomSocketError;
   const [menuOpen, setMenuOpen] = useState(false);
   const [bgColor, setBgColor] = useState('#000B1E');
   const [showPlaceholders, setShowPlaceholders] = useState(true);
@@ -96,7 +121,8 @@ export default function LegendPage() {
     document.cookie = `NEXT_LOCALE=${targetLocale}; path=/; max-age=31536000`;
     void router.replace({ pathname: router.pathname, query: router.query }, undefined, { locale: targetLocale });
   }, [router, state?.locale]);
-  const statusSuffix = roomId ? legendMessages.statusRoomSuffix.replace('{roomId}', roomId) : '';
+  const statusTarget = roomId ?? externalSource.meetCode;
+  const statusSuffix = statusTarget ? legendMessages.statusRoomSuffix.replace('{roomId}', statusTarget) : '';
   const digitsModeLabel = digitMode === 'hhmmss' ? legendMessages.digitsModes.hhmmss : legendMessages.digitsModes.mmss;
   const digitsButtonLabel = legendMessages.buttons.digits.replace('{mode}', digitsModeLabel);
   const wakeButtonLabel = legendMessages.buttons.wake.replace(
@@ -130,7 +156,7 @@ export default function LegendPage() {
                 {commonMessages.labels.status}: {status}
                 {statusSuffix}
               </span>
-              {!roomId || !adminPin ? (
+              {!isExternalMode && (!roomId || !adminPin) ? (
                 <span className="text-[10px] uppercase tracking-[0.3em] text-amber-200">
                   {legendMessages.missingCredentials}
                 </span>
@@ -280,4 +306,73 @@ function formatHms(ms: number, includeHours: boolean) {
     return `${totalMinutes}:${seconds}`;
   }
   return `${hours}:${minutes}:${seconds}`;
+}
+
+function readQueryValue(value: string | string[] | undefined): string | undefined {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return undefined;
+}
+
+function resolveEasyLifterSource(
+  externalUrl?: string,
+  externalMeet?: string,
+  externalOrigin?: string
+): {
+  enabled: boolean;
+  origin?: string;
+  meetCode?: string;
+  error: string | null;
+} {
+  const hasExternalInput = Boolean(
+    (externalUrl && externalUrl.trim()) ||
+    (externalMeet && externalMeet.trim()) ||
+    (externalOrigin && externalOrigin.trim())
+  );
+
+  if (!hasExternalInput) {
+    return { enabled: false, error: null };
+  }
+
+  let meetCode = externalMeet?.trim();
+  let origin = externalOrigin?.trim();
+
+  if (externalUrl && externalUrl.trim()) {
+    let parsed: URL;
+    try {
+      parsed = new URL(externalUrl.trim());
+    } catch {
+      return {
+        enabled: true,
+        error: 'A URL externa está inválida. Use um endereço completo com http:// ou https://.'
+      };
+    }
+
+    if (!origin) {
+      origin = parsed.origin;
+    }
+    if (!meetCode) {
+      const meet = parsed.searchParams.get('meet');
+      meetCode = meet?.trim() || undefined;
+    }
+  }
+
+  if (!origin) {
+    origin = DEFAULT_EASYLIFTER_ORIGIN;
+  }
+
+  if (!meetCode) {
+    return {
+      enabled: true,
+      origin,
+      error: 'Informe o código da competição em `meet` (ex.: `?meet=3NJH7Y53`) ou via `externalMeet`.'
+    };
+  }
+
+  return {
+    enabled: true,
+    origin,
+    meetCode,
+    error: null
+  };
 }
