@@ -10,12 +10,12 @@ import { useEasyLifterBridge } from '@/hooks/useEasyLifterBridge';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { readQueryValue, resolveEasyLifterSource } from '@/lib/easyLifterSource';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
 import { Seo } from '@/components/Seo';
 
 const BASE_SCALE = 0.9;
 const DEFAULT_ZOOM = 1;
-const DEFAULT_EASYLIFTER_ORIGIN = 'https://easyliftersoftware.com';
 
 export default function DisplayPage() {
   const router = useRouter();
@@ -129,7 +129,13 @@ export default function DisplayPage() {
   const resetZoom = useCallback(() => setZoom(DEFAULT_ZOOM), []);
 
   if (isExternalMode && externalSource.error) {
-    return <MissingExternalSourceConfig message={externalSource.error} />;
+    return (
+      <MissingExternalSourceConfig
+        message={externalSource.error}
+        integration={commonMessages.integration}
+        errors={commonMessages.errors}
+      />
+    );
   }
 
   if (!isExternalMode && (!roomId || !adminPin)) {
@@ -324,83 +330,23 @@ function MissingDisplayCredentials({ messages }: { messages: Messages['display']
   );
 }
 
-function MissingExternalSourceConfig({ message }: { message: string }) {
+function MissingExternalSourceConfig({
+  message,
+  integration,
+  errors
+}: {
+  message: string;
+  integration: Messages['common']['integration'];
+  errors: Record<string, string>;
+}) {
+  const text = errors[message] ?? message;
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 py-12 text-center text-white">
-      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">Fonte externa inválida</h1>
-      <p className="max-w-xl text-sm text-white/70">{message}</p>
+      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">{integration.invalidSourceTitle}</h1>
+      <p className="max-w-xl text-sm text-white/70">{text}</p>
       <p className="max-w-xl text-xs text-white/50">
-        Exemplo: <code>/display?externalUrl=https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53</code>
+        {integration.exampleLabel}: <code>/display?externalUrl=https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53</code>
       </p>
     </main>
   );
-}
-
-function readQueryValue(value: string | string[] | undefined): string | undefined {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
-  return undefined;
-}
-
-function resolveEasyLifterSource(
-  externalUrl?: string,
-  externalMeet?: string,
-  externalOrigin?: string
-): {
-  enabled: boolean;
-  origin?: string;
-  meetCode?: string;
-  error: string | null;
-} {
-  const hasExternalInput = Boolean(
-    (externalUrl && externalUrl.trim()) ||
-    (externalMeet && externalMeet.trim()) ||
-    (externalOrigin && externalOrigin.trim())
-  );
-
-  if (!hasExternalInput) {
-    return { enabled: false, error: null };
-  }
-
-  let meetCode = externalMeet?.trim();
-  let origin = externalOrigin?.trim();
-
-  if (externalUrl && externalUrl.trim()) {
-    let parsed: URL;
-    try {
-      parsed = new URL(externalUrl.trim());
-    } catch {
-      return {
-        enabled: true,
-        error: 'A URL externa está inválida. Use um endereço completo com http:// ou https://.'
-      };
-    }
-
-    if (!origin) {
-      origin = parsed.origin;
-    }
-    if (!meetCode) {
-      const meet = parsed.searchParams.get('meet');
-      meetCode = meet?.trim() || undefined;
-    }
-  }
-
-  if (!origin) {
-    origin = DEFAULT_EASYLIFTER_ORIGIN;
-  }
-
-  if (!meetCode) {
-    return {
-      enabled: true,
-      origin,
-      error: 'Informe o código da competição em `meet` (ex.: `?meet=3NJH7Y53`) ou via `externalMeet`.'
-    };
-  }
-
-  return {
-    enabled: true,
-    origin,
-    meetCode,
-    error: null
-  };
 }

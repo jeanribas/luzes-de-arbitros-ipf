@@ -76,6 +76,8 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
   const [intervalSeconds, setIntervalSeconds] = useState(0);
 
   const [qrMenuOpen, setQrMenuOpen] = useState(false);
+  const [legendModalOpen, setLegendModalOpen] = useState(false);
+  const [integrationModalOpen, setIntegrationModalOpen] = useState(false);
   const [appOrigin, setAppOrigin] = useState('');
   const [integrationInput, setIntegrationInput] = useState('');
   const [integrationUrl, setIntegrationUrl] = useState('');
@@ -254,9 +256,12 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
     ];
   }, [adminMessages.qrMenu.targets.center, adminMessages.qrMenu.targets.left, adminMessages.qrMenu.targets.right, appOrigin, roomAccess, roomId]);
 
-  const displayLink = buildDisplayOrLegendHref('/display', roomId, adminPin, integrationUrl);
-
-  const legendLink = buildDisplayOrLegendHref('/legend', roomId, adminPin, integrationUrl);
+  const displayLink = buildRoomViewHref('/display', roomId, adminPin);
+  const legendLink = buildRoomViewHref('/legend', roomId, adminPin);
+  const timerLink = buildRoomViewHref('/timer', roomId, adminPin);
+  const integrationDisplayLink = buildIntegrationViewHref('/integration/display', integrationUrl);
+  const integrationLegendLink = buildIntegrationViewHref('/integration/legend', integrationUrl);
+  const integrationTimerLink = buildIntegrationViewHref('/integration/timer', integrationUrl);
 
   const roomErrorMessage = formatApiError(roomErrorCode, commonMessages.errors);
   const socketErrorMessage = formatApiError(socketError, commonMessages.errors);
@@ -638,49 +643,6 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
               </p>
             </div>
 
-            <div className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-[#0F141F] p-5">
-              <h3 className={`text-xs font-semibold uppercase ${cardHeadingTracking} text-slate-300`}>
-                {adminMessages.integration.title}
-              </h3>
-              <p className="text-xs text-slate-400">{adminMessages.integration.description}</p>
-              <label className="flex flex-col gap-1">
-                <span className={`text-[10px] uppercase ${labelTracking} text-slate-400`}>
-                  {adminMessages.integration.urlLabel}
-                </span>
-                <input
-                  type="url"
-                  value={integrationInput}
-                  onChange={(event) => {
-                    setIntegrationInput(event.target.value);
-                    if (integrationError) setIntegrationError(null);
-                    if (integrationNotice) setIntegrationNotice(null);
-                  }}
-                  placeholder={adminMessages.integration.urlPlaceholder}
-                  className="min-h-[44px] rounded border border-slate-700 bg-slate-950 px-3 text-sm font-medium text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <button
-                  className={`${controlButtonBase} bg-slate-200 text-slate-900 hover:bg-slate-100`}
-                  onClick={handleSaveIntegration}
-                >
-                  {adminMessages.integration.save}
-                </button>
-                <button
-                  className={`${controlButtonBase} bg-slate-700 text-white hover:bg-slate-600`}
-                  onClick={handleClearIntegration}
-                >
-                  {adminMessages.integration.clear}
-                </button>
-              </div>
-              {integrationError && <span className="text-xs text-rose-300">{integrationError}</span>}
-              {integrationNotice && <span className="text-xs text-emerald-300">{integrationNotice}</span>}
-              {integrationUrl && (
-                <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-100">
-                  {adminMessages.integration.activeBadge}
-                </div>
-              )}
-            </div>
           </aside>
 
           <section className="relative flex min-h-[60vh] flex-col items-center justify-center rounded-3xl border border-slate-800 bg-[#0B1019] p-6 shadow-2xl">
@@ -706,11 +668,6 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
               <p className="text-sm text-slate-400">{adminMessages.preview.waiting}</p>
             )}
             <div className="pointer-events-none absolute bottom-6 right-6 flex flex-row items-center gap-3">
-              {integrationUrl && (
-                <span className="pointer-events-auto inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-100">
-                  {adminMessages.integration.activeBadge}
-                </span>
-              )}
               <button
                 type="button"
                 onClick={() => setQrMenuOpen(true)}
@@ -724,11 +681,18 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
               >
                 {adminMessages.preview.goToDisplay}
               </Link>
-              <Link
-                href={legendLink}
+              <button
+                type="button"
+                onClick={() => setLegendModalOpen(true)}
                 className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/20"
               >
                 {adminMessages.preview.goToLegend}
+              </button>
+              <Link
+                href={timerLink}
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/20"
+              >
+                {adminMessages.preview.goToTimer}
               </Link>
             </div>
           </section>
@@ -749,7 +713,255 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
           closeLabel={commonMessages.srOnly.close}
         />
       )}
+      {legendModalOpen && (
+        <LegendPreviewModal
+          src={legendLink}
+          onClose={() => setLegendModalOpen(false)}
+          title={adminMessages.preview.goToLegend}
+          closeLabel={commonMessages.srOnly.close}
+        />
+      )}
+      {integrationModalOpen && (
+        <IntegrationModal
+          title={adminMessages.integration.title}
+          description={adminMessages.integration.description}
+          urlLabel={adminMessages.integration.urlLabel}
+          urlPlaceholder={adminMessages.integration.urlPlaceholder}
+          saveLabel={adminMessages.integration.save}
+          clearLabel={adminMessages.integration.clear}
+          activeBadge={adminMessages.integration.activeBadge}
+          openDisplayLabel={adminMessages.integration.goToDisplay}
+          openLegendLabel={adminMessages.integration.goToLegend}
+          openTimerLabel={adminMessages.integration.goToTimer}
+          emptyLinksLabel={adminMessages.integration.linksDisabled}
+          inputValue={integrationInput}
+          onInputChange={(value) => {
+            setIntegrationInput(value);
+            if (integrationError) setIntegrationError(null);
+            if (integrationNotice) setIntegrationNotice(null);
+          }}
+          onSave={handleSaveIntegration}
+          onClear={handleClearIntegration}
+          onClose={() => setIntegrationModalOpen(false)}
+          closeLabel={commonMessages.srOnly.close}
+          integrationError={integrationError}
+          integrationNotice={integrationNotice}
+          displayLink={integrationDisplayLink}
+          legendLink={integrationLegendLink}
+          timerLink={integrationTimerLink}
+          isActive={Boolean(integrationUrl.trim())}
+        />
+      )}
     </>
+  );
+}
+
+function LegendPreviewModal({
+  src,
+  onClose,
+  title,
+  closeLabel
+}: {
+  src: string;
+  onClose: () => void;
+  title: string;
+  closeLabel: string;
+}) {
+  const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.currentTarget === event.target) {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-6 py-10"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div className="relative h-[85vh] w-full max-w-[1600px] overflow-hidden rounded-3xl border border-white/10 bg-[#0F141F] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-6 top-6 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+        >
+          <span className="sr-only">{closeLabel}</span>
+          ×
+        </button>
+        <iframe
+          src={src}
+          title={title}
+          className="h-full w-full"
+          loading="lazy"
+        />
+      </div>
+    </div>
+  );
+}
+
+function IntegrationModal({
+  title,
+  description,
+  urlLabel,
+  urlPlaceholder,
+  saveLabel,
+  clearLabel,
+  activeBadge,
+  openDisplayLabel,
+  openLegendLabel,
+  openTimerLabel,
+  emptyLinksLabel,
+  inputValue,
+  onInputChange,
+  onSave,
+  onClear,
+  onClose,
+  closeLabel,
+  integrationError,
+  integrationNotice,
+  displayLink,
+  legendLink,
+  timerLink,
+  isActive
+}: {
+  title: string;
+  description: string;
+  urlLabel: string;
+  urlPlaceholder: string;
+  saveLabel: string;
+  clearLabel: string;
+  activeBadge: string;
+  openDisplayLabel: string;
+  openLegendLabel: string;
+  openTimerLabel: string;
+  emptyLinksLabel: string;
+  inputValue: string;
+  onInputChange: (value: string) => void;
+  onSave: () => void;
+  onClear: () => void;
+  onClose: () => void;
+  closeLabel: string;
+  integrationError: string | null;
+  integrationNotice: string | null;
+  displayLink: string;
+  legendLink: string;
+  timerLink: string;
+  isActive: boolean;
+}) {
+  const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.currentTarget === event.target) {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-6 py-10"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div className="relative w-full max-w-3xl rounded-3xl border border-white/10 bg-[#0F141F] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-6 top-6 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+        >
+          <span className="sr-only">{closeLabel}</span>
+          ×
+        </button>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold uppercase tracking-[0.4em] text-white">{title}</h2>
+          <p className="text-sm text-slate-300">{description}</p>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-4">
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              {urlLabel}
+            </span>
+            <input
+              type="url"
+              value={inputValue}
+              onChange={(event) => onInputChange(event.target.value)}
+              placeholder={urlPlaceholder}
+              className="min-h-[44px] rounded border border-slate-700 bg-slate-950 px-3 text-sm font-medium text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              className="min-h-[48px] rounded-lg bg-slate-200 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-900 transition hover:bg-slate-100"
+              onClick={onSave}
+            >
+              {saveLabel}
+            </button>
+            <button
+              type="button"
+              className="min-h-[48px] rounded-lg bg-slate-700 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-slate-600"
+              onClick={onClear}
+            >
+              {clearLabel}
+            </button>
+          </div>
+
+          {integrationError && <span className="text-xs text-rose-300">{integrationError}</span>}
+          {integrationNotice && <span className="text-xs text-emerald-300">{integrationNotice}</span>}
+          {isActive && (
+            <div className="w-fit rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-100">
+              {activeBadge}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Link
+            href={displayLink}
+            target="_blank"
+            rel="noreferrer"
+            aria-disabled={!isActive}
+            className={`inline-flex min-h-[48px] items-center justify-center rounded-lg border px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+              isActive
+                ? 'border-cyan-300/35 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'
+                : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'
+            }`}
+          >
+            {openDisplayLabel}
+          </Link>
+          <Link
+            href={legendLink}
+            target="_blank"
+            rel="noreferrer"
+            aria-disabled={!isActive}
+            className={`inline-flex min-h-[48px] items-center justify-center rounded-lg border px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+              isActive
+                ? 'border-cyan-300/35 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'
+                : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'
+            }`}
+          >
+            {openLegendLabel}
+          </Link>
+          <Link
+            href={timerLink}
+            target="_blank"
+            rel="noreferrer"
+            aria-disabled={!isActive}
+            className={`inline-flex min-h-[48px] items-center justify-center rounded-lg border px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+              isActive
+                ? 'border-cyan-300/35 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'
+                : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'
+            }`}
+          >
+            {openTimerLabel}
+          </Link>
+        </div>
+        {!isActive && <p className="mt-3 text-xs text-slate-500">{emptyLinksLabel}</p>}
+      </div>
+    </div>
   );
 }
 
@@ -1005,20 +1217,26 @@ function buildRefHref(origin: string, roomId: string, token: string, judge: Judg
   return `${origin}/ref/${judge}?roomId=${encodedRoom}&token=${encodedToken}`;
 }
 
-function buildDisplayOrLegendHref(
-  path: '/display' | '/legend',
+function buildRoomViewHref(
+  path: '/display' | '/legend' | '/timer',
   roomId: string | undefined,
-  adminPin: string | undefined,
-  integrationUrl: string
+  adminPin: string | undefined
 ) {
-  const trimmedIntegration = integrationUrl.trim();
-  if (trimmedIntegration) {
-    return `${path}?externalUrl=${encodeURIComponent(trimmedIntegration)}`;
-  }
   if (roomId && adminPin) {
     return `${path}?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`;
   }
   return path;
+}
+
+function buildIntegrationViewHref(
+  path: '/integration/display' | '/integration/legend' | '/integration/timer',
+  integrationUrl: string
+) {
+  const trimmedIntegration = integrationUrl.trim();
+  if (!trimmedIntegration) {
+    return path;
+  }
+  return `${path}?externalUrl=${encodeURIComponent(trimmedIntegration)}`;
 }
 
 function normalizeConfiguredOrigin(value: string | undefined, defaultProtocol: string) {

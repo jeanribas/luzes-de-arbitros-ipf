@@ -7,10 +7,10 @@ import type { Server as SocketIOServer, Socket } from 'socket.io';
 import { config } from './config.js';
 import { RoomManager } from './rooms.js';
 import {
-  RoomState,
   type AppState,
   type CardValue,
   type Judge,
+  type LegendConfig,
   type Locale,
   type VoteValue
 } from './state.js';
@@ -59,6 +59,31 @@ type LocalePayload = {
   locale: Locale;
 };
 
+type LegendConfigPayload = {
+  config: LegendConfig;
+};
+
+type IntegrationProvider = 'easylifter';
+
+type IntegrationConfigPayload = {
+  provider?: IntegrationProvider;
+  externalUrl?: string;
+};
+
+type RoomIntegrationPayload = IntegrationConfigPayload & {
+  adminPin?: string;
+};
+
+type GlobalIntegrationPayload = IntegrationConfigPayload & {
+  username?: string;
+  password?: string;
+};
+
+type IntegrationAuthPayload = {
+  username?: string;
+  password?: string;
+};
+
 type AckResponse = { ok: true } | { error: string };
 
 type ClientToServerEvents = {
@@ -71,6 +96,7 @@ type ClientToServerEvents = {
   'timer:command': (payload: TimerPayload, ack?: (response: AckResponse) => void) => void;
   'interval:command': (payload: IntervalPayload, ack?: (response: AckResponse) => void) => void;
   'locale:change': (payload: LocalePayload, ack?: (response: AckResponse) => void) => void;
+  'legend:config': (payload: LegendConfigPayload, ack?: (response: AckResponse) => void) => void;
 };
 
 type ServerToClientEvents = {
@@ -136,6 +162,7 @@ export async function createServer() {
   const roomManager = new RoomManager((roomId, snapshot) => {
     io.to(roomChannel(roomId)).emit('state:update', snapshot);
   });
+  let globalIntegration: ReturnType<typeof toPersistedIntegration> | null = null;
 
   app.get('/health', async () => ({ status: 'ok' }));
 
@@ -197,6 +224,86 @@ export async function createServer() {
     }
 
     return payload;
+  });
+
+  app.get<{
+    Params: { roomId: string };
+  }>('/rooms/:roomId/integration', async (request, reply) => {
+    const { roomId } = request.params;
+    const state = roomManager.getRoomState(roomId);
+    if (!state) {
+      reply.code(404);
+      return { error: 'room_not_found' };
+    }
+
+    return { integration: roomManager.getIntegrationConfig(roomId) };
+  });
+
+  app.post<{
+    Params: { roomId: string };
+    Body: RoomIntegrationPayload;
+  }>('/rooms/:roomId/integration', async (request, reply) => {
+    const { roomId } = request.params;
+    const { adminPin } = request.body ?? {};
+
+    const state = roomManager.getRoomState(roomId);
+    if (!state) {
+      reply.code(404);
+      return { error: 'room_not_found' };
+    }
+
+    if (!roomManager.verifyAdminPin(roomId, adminPin)) {
+      reply.code(403);
+      return { error: 'invalid_pin' };
+    }
+
+    const parsedIntegration = parseIntegrationPayload(request.body);
+    if (!parsedIntegration.ok) {
+      reply.code(parsedIntegration.status);
+      return { error: parsedIntegration.error };
+    }
+
+    const integration = roomManager.setIntegrationConfig(roomId, parsedIntegration.integration);
+    return { integration };
+  });
+
+  app.get('/integration/config', async () => {
+    return { integration: globalIntegration };
+  });
+
+  app.post<{
+    Body: IntegrationAuthPayload;
+  }>('/integration/auth', async (request, reply) => {
+    const username = request.body?.username?.trim() ?? '';
+    const password = request.body?.password?.trim() ?? '';
+
+    if (!isIntegrationCredentialsValid(username, password)) {
+      reply.code(403);
+      return { error: 'invalid_credentials' };
+    }
+
+    return { ok: true };
+  });
+
+  app.post<{
+    Body: GlobalIntegrationPayload;
+  }>('/integration/config', async (request, reply) => {
+    const username = request.body?.username?.trim() ?? '';
+    const password = request.body?.password?.trim() ?? '';
+
+    if (!isIntegrationCredentialsValid(username, password)) {
+      reply.code(403);
+      return { error: 'invalid_credentials' };
+    }
+
+    const parsedIntegration = parseIntegrationPayload(request.body);
+    if (!parsedIntegration.ok) {
+      reply.code(parsedIntegration.status);
+      return { error: parsedIntegration.error };
+    }
+
+    globalIntegration = toPersistedIntegration(parsedIntegration.integration);
+    return { integration: globalIntegration };
   });
 
   io.on('connection', (socket: AppSocket) => {
@@ -383,6 +490,23 @@ export async function createServer() {
       ack?.({ ok: true });
     });
 
+    socket.on('legend:config', (payload, ack) => {
+      const adminContext = ensureAdminContext(socket, roomManager);
+      if (!adminContext.ok) {
+        ack?.({ error: adminContext.error });
+        return;
+      }
+
+      const nextConfig = parseLegendConfig(payload?.config);
+      if (!nextConfig) {
+        ack?.({ error: 'invalid_payload' });
+        return;
+      }
+
+      adminContext.state.setLegendConfig(nextConfig);
+      ack?.({ ok: true });
+    });
+
     socket.on('disconnect', (reason: string) => {
       app.log.info({ event: 'disconnect', role: socket.data.role, reason });
       const { roomId, judgeRole } = socket.data;
@@ -455,4 +579,101 @@ function ensureTimerControllerContext(socket: AppSocket, roomManager: RoomManage
   }
 
   return { ok: false as const, error: 'not_authorised' };
+}
+
+function parseLegendConfig(input: unknown): LegendConfig | null {
+  const payload = (input ?? {}) as Partial<LegendConfig>;
+  if (!isLegendBg(payload.bgColor)) return null;
+  if (!isHexColor(payload.timerColor)) return null;
+  if (payload.digitMode !== 'hhmmss' && payload.digitMode !== 'mmss') return null;
+  if (typeof payload.showPlaceholders !== 'boolean') return null;
+  if (payload.showDashedFrame !== undefined && typeof payload.showDashedFrame !== 'boolean') return null;
+  if (typeof payload.keepAwake !== 'boolean') return null;
+
+  return {
+    bgColor: payload.bgColor,
+    timerColor: payload.timerColor,
+    digitMode: payload.digitMode,
+    showPlaceholders: payload.showPlaceholders,
+    showDashedFrame: payload.showDashedFrame ?? true,
+    keepAwake: payload.keepAwake
+  };
+}
+
+function isLegendBg(value: unknown): value is string {
+  return value === 'transparent' || isHexColor(value);
+}
+
+function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value);
+}
+
+function parseIntegrationPayload(input: IntegrationConfigPayload | undefined):
+  | {
+      ok: true;
+      integration: {
+        provider: IntegrationProvider;
+        externalUrl: string;
+        origin: string;
+        meetCode: string;
+      } | null;
+    }
+  | {
+      ok: false;
+      status: number;
+      error: string;
+    } {
+  const payload = input ?? {};
+  const provider = payload.provider ?? 'easylifter';
+  if (provider !== 'easylifter') {
+    return { ok: false, status: 400, error: 'invalid_payload' };
+  }
+
+  const rawExternalUrl = payload.externalUrl?.trim() ?? '';
+  if (!rawExternalUrl) {
+    return { ok: true, integration: null };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawExternalUrl);
+  } catch {
+    return { ok: false, status: 400, error: 'external_invalid_url' };
+  }
+
+  const meetCode = parsed.searchParams.get('meet')?.trim();
+  if (!meetCode) {
+    return { ok: false, status: 400, error: 'external_missing_meet' };
+  }
+
+  return {
+    ok: true,
+    integration: {
+      provider,
+      externalUrl: parsed.toString(),
+      origin: parsed.origin,
+      meetCode
+    }
+  };
+}
+
+function toPersistedIntegration(
+  integration:
+    | {
+        provider: IntegrationProvider;
+        externalUrl: string;
+        origin: string;
+        meetCode: string;
+      }
+    | null
+) {
+  if (!integration) return null;
+  return {
+    ...integration,
+    updatedAt: Date.now()
+  };
+}
+
+function isIntegrationCredentialsValid(username: string, password: string) {
+  return username === config.INTEGRATION_USER && password === config.INTEGRATION_PASSWORD;
 }

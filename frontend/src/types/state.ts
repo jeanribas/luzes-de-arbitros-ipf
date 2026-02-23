@@ -5,6 +5,15 @@ export type Phase = 'idle' | 'revealed';
 
 import type { AppLocale } from '@/lib/i18n/config';
 
+export interface LegendConfig {
+  bgColor: string;
+  timerColor: string;
+  digitMode: 'mmss' | 'hhmmss';
+  showPlaceholders: boolean;
+  showDashedFrame: boolean;
+  keepAwake: boolean;
+}
+
 export interface AppState {
   phase: Phase;
   votes: Record<Judge, VoteValue>;
@@ -17,6 +26,7 @@ export interface AppState {
   intervalRunning: boolean;
   intervalVisible: boolean;
   locale: AppLocale;
+  legendConfig: LegendConfig;
 }
 
 export type ClientRole = 'admin' | 'display' | Judge | 'viewer';

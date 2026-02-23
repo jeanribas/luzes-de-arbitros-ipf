@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 import { getWsUrl } from '@/lib/config';
-import { AppState, CardValue, ClientRole, VoteValue } from '@/types/state';
+import { AppState, CardValue, ClientRole, LegendConfig, VoteValue } from '@/types/state';
 import type { AppLocale } from '@/lib/i18n/config';
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
@@ -26,6 +26,7 @@ interface UseRoomSocketResult {
   intervalShow: () => void;
   intervalHide: () => void;
   changeLocale: (locale: AppLocale) => void;
+  setLegendConfig: (config: LegendConfig) => void;
   error: string | null;
 }
 
@@ -132,6 +133,7 @@ export function useRoomSocket(role: ClientRole, options: UseRoomSocketOptions = 
   const intervalShow = () => send('interval:command', { action: 'show' });
   const intervalHide = () => send('interval:command', { action: 'hide' });
   const changeLocale = (locale: AppLocale) => send('locale:change', { locale });
+  const setLegendConfig = (config: LegendConfig) => send('legend:config', { config });
 
   return {
     status,
@@ -152,6 +154,7 @@ export function useRoomSocket(role: ClientRole, options: UseRoomSocketOptions = 
     intervalShow,
     intervalHide,
     changeLocale,
+    setLegendConfig,
     error
   };
 }

@@ -1,51 +1,70 @@
 # WebSocket Events (Socket.IO)
 
-Namespace: `/`  •  Rooms are joined via `room:<roomId>`
+Namespace: `/`
 
-## Client → Server
+After registering, each client joins `room:<roomId>` and receives `state:update` snapshots.
 
-| Event              | Payload                                         | Roles                           | Notes |
-| ------------------ | ----------------------------------------------- | --------------------------------| ----- |
-| `room:join`        | `{ roomId, role, token?, pin? }`               | all                             | Validates JWT (refs) + PIN (admin/display/jury) |
-| `ref:vote`         | `{ vote: 'white' | 'red' }`                    | `side_ref_left/right`, `chief_ref` | Allowed only in `READY/ARMED`; throttled (250 ms) |
-| `ref:card`         | `{ card: 1 | 2 | 3 | null }`                   | referee roles                   | After `NO LIFT`; clears with `null` |
-| `control:ready`    | `null`                                         | `admin`, `chief_ref`            | Resets votes + timer state |
-| `control:armed`    | `null`                                         | `admin`, `chief_ref`            | Optional pre-arm stage |
-| `decision:release` | `null`                                         | `admin`, `chief_ref`            | Forces reveal (simultaneous lights) |
-| `decision:clear`   | `null`                                         | `admin`                         | Clears lights + timer reset |
-| `timer:action`     | `{ action: 'start' | 'stop' | 'reset' | 'set', seconds? }` | `admin`, `chief_ref` | `set` stops timer and applies new value |
-| `config:update`    | Partial `RoomConfig`                           | `admin`                         | Toggle UI / autoRelease |
-| `jury:override`    | `{ result: 'good' | 'no' }`                    | `jury`                          | Forces decision + stores `revealedAt` |
-| `heartbeat`        | `null`                                         | any                             | Optional keep-alive every 10s |
+## Client -> Server
 
-## Server → Client
+| Event | Payload | Allowed roles | Notes |
+| --- | --- | --- | --- |
+| `client:register` | `{ role, roomId, pin?, token? }` | all | Required before any other command. |
+| `ref:vote` | `{ vote: 'white' \| 'red' \| null }` | `left`, `center`, `right` | Records judge decision. |
+| `ref:card` | `{ card: 1 \| 2 \| 3 \| null }` | `left`, `center`, `right` | Manages red-card details. |
+| `admin:ready` | none | `admin`, `display` | Resets state for next attempt. |
+| `admin:release` | none | `admin`, `display` | Forces reveal. |
+| `admin:clear` | none | `admin`, `display` | Clears revealed decision. |
+| `timer:command` | `{ action: 'start' \| 'stop' \| 'reset' \| 'set', seconds? }` | `admin`, `display`, `center` | `set` starts with provided seconds. |
+| `interval:command` | `{ action: 'start' \| 'stop' \| 'reset' \| 'set' \| 'show' \| 'hide', seconds? }` | `admin`, `display` | Controls interval timer and visibility. |
+| `locale:change` | `{ locale: 'pt-BR' \| 'en-US' \| 'es-ES' }` | `admin`, `display` | Updates locale for all clients in room. |
+| `legend:config` | `{ config: { bgColor, timerColor, digitMode, showPlaceholders, showDashedFrame, keepAwake } }` | `admin`, `display` | Saves shared legend visual config. |
 
-| Event          | Payload        | Description |
-| -------------- | -------------- | ----------- |
-| `state:update` | `RoomSnapshot` | Full room snapshot (config, decision, timer, members) |
+## Server -> Client
 
-`RoomSnapshot` structure matches TypeScript interface in `server/src/types.ts` and `frontend/src/types/room.ts`.
+| Event | Payload | Description |
+| --- | --- | --- |
+| `state:update` | `AppState` | Full snapshot broadcast on every state change. |
+| `locale:change` | `Locale` | Immediate locale notification after `locale:change`. |
 
-## Tokens & Security
+## `AppState` shape
 
-- Referee tokens are JWTs (`HS256`) with 15 min expiration, generated per role.
-- Display/admin/jury require PIN validation over the socket; display also receives fresh referee tokens to render QR codes.
-- Rate limiting applied per socket: votes (250 ms), state controls (300–500 ms), timer (200 ms), jury override (1 s).
+```ts
+{
+  phase: 'idle' | 'revealed',
+  votes: { left, center, right },
+  cards: { left, center, right },
+  timerMs: number,
+  running: boolean,
+  connected: { left, center, right },
+  intervalMs: number,
+  intervalConfiguredMs: number,
+  intervalRunning: boolean,
+  intervalVisible: boolean,
+  locale: 'pt-BR' | 'en-US' | 'es-ES',
+  legendConfig: {
+    bgColor: string,                // '#RRGGBB' or 'transparent'
+    timerColor: string,             // '#RRGGBB'
+    digitMode: 'mmss' | 'hhmmss',
+    showPlaceholders: boolean,
+    showDashedFrame: boolean,
+    keepAwake: boolean
+  }
+}
+```
 
-## Error codes
+## Auth rules
 
-Errors returned via ACK `{ error: string }`:
+- `admin` and `display` require valid room PIN (`pin`).
+- `left`, `center`, `right` require valid referee token (`token`).
+- `viewer` only needs `roomId`.
+
+## ACK errors
+
+Most commands can return `{ error: string }` in ACK callbacks:
 
 - `invalid_payload`
-- `token_required`
-- `invalid_token`
-- `pin_required`
-- `invalid_pin`
-- `not_allowed`
-- `voting_not_allowed`
-- `cards_not_available`
-- `card_only_for_red`
-- `rate_limited`
 - `room_not_found`
-
-Clients should surface the error to the user or retry after cooldown (`rate_limited`).
+- `invalid_pin`
+- `invalid_token`
+- `not_authorised`
+- `unknown_action`

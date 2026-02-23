@@ -1,62 +1,58 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 
 import { DecisionLights } from '@/components/DecisionLights';
-import { useEasyLifterBridge } from '@/hooks/useEasyLifterBridge';
-import { useRoomSocket } from '@/hooks/useRoomSocket';
-import { useWakeLock } from '@/hooks/useWakeLock';
-import { readQueryValue, resolveEasyLifterSource } from '@/lib/easyLifterSource';
-import { getMessages } from '@/lib/i18n/messages';
 import { Seo } from '@/components/Seo';
+import { useEasyLifterBridge } from '@/hooks/useEasyLifterBridge';
+import { useIntegrationConfig } from '@/hooks/useIntegrationConfig';
+import { useWakeLock } from '@/hooks/useWakeLock';
+import { readQueryByKeys, readQueryValue, resolveEasyLifterSource } from '@/lib/easyLifterSource';
+import { getMessages } from '@/lib/i18n/messages';
 
 const DEFAULT_LEGEND_BG = 'transparent';
+const COLOR_PRESETS = ['#000B1E', '#000000', '#0B0B0B', '#012A4A', '#111723', '#1A1A20'];
 
-export default function LegendPage() {
+export default function IntegrationLegendPage() {
   const router = useRouter();
-  const roomId = typeof router.query.roomId === 'string' ? router.query.roomId.toUpperCase() : undefined;
-  const adminPin = typeof router.query.pin === 'string' ? router.query.pin : undefined;
+  const locale = typeof router.locale === 'string' ? router.locale : undefined;
+  const messages = useMemo(() => getMessages(locale), [locale]);
+  const legendMessages = messages.legend;
+  const commonMessages = messages.common;
+  const displayMessages = messages.display;
+  const integrationMessages = commonMessages.integration;
+
+  const roomId = readQueryByKeys(router.query, ['roomId', 'roomid', 'room']);
+  const viewMode = readQueryValue(router.query.view);
+  const isShareView = viewMode === 'share';
   const externalUrl = readQueryValue(router.query.externalUrl);
   const externalMeet = readQueryValue(router.query.externalMeet) ?? readQueryValue(router.query.meet);
   const externalOrigin = readQueryValue(router.query.externalOrigin);
-  const viewMode = readQueryValue(router.query.view);
   const legendBgQuery = readQueryValue(router.query.legendBg);
   const legendTimerQuery = readQueryValue(router.query.legendTimer);
   const legendDigitsQuery = readQueryValue(router.query.legendDigits);
   const legendPlaceholdersQuery = readQueryValue(router.query.legendPlaceholders);
   const legendFrameQuery = readQueryValue(router.query.legendFrame);
-  const locale = typeof router.locale === 'string' ? router.locale : undefined;
-  const messages = useMemo(() => getMessages(locale), [locale]);
-  const legendMessages = messages.legend;
-  const commonMessages = messages.common;
-  const isShareView = viewMode === 'share';
+
+  const { config: savedIntegration, loading: savedIntegrationLoading, error: savedIntegrationError } =
+    useIntegrationConfig(roomId);
+
+  const effectiveExternalUrl = externalUrl ?? savedIntegration?.externalUrl;
+  const effectiveExternalMeet = externalMeet ?? savedIntegration?.meetCode;
+  const effectiveExternalOrigin = externalOrigin ?? savedIntegration?.origin;
 
   const externalSource = useMemo(
-    () => resolveEasyLifterSource(externalUrl, externalMeet, externalOrigin),
-    [externalMeet, externalOrigin, externalUrl]
+    () => resolveEasyLifterSource(effectiveExternalUrl, effectiveExternalMeet, effectiveExternalOrigin),
+    [effectiveExternalMeet, effectiveExternalOrigin, effectiveExternalUrl]
   );
 
-  const isExternalMode = externalSource.enabled;
-
-  const socketOptions = useMemo(
-    () => (roomId && adminPin ? { roomId, adminPin } : {}),
-    [roomId, adminPin]
-  );
-
-  const {
-    state: roomState,
-    status: roomStatus,
-    error: roomSocketError,
-    setLegendConfig
-  } = useRoomSocket('display', socketOptions);
-  const { state: externalState, status: externalStatus, error: externalError } = useEasyLifterBridge({
-    enabled: isExternalMode && !externalSource.error,
+  const { state, status, error: externalError } = useEasyLifterBridge({
+    enabled: externalSource.enabled && !externalSource.error,
     meetCode: externalSource.meetCode,
-    origin: externalSource.origin
+    origin: externalSource.origin,
+    crossTabSync: false
   });
 
-  const state = isExternalMode ? externalState : roomState;
-  const status = isExternalMode ? externalStatus : roomStatus;
-  const socketError = isExternalMode ? externalSource.error ?? externalError : roomSocketError;
+  const socketError = externalSource.error ?? externalError ?? savedIntegrationError;
   const socketErrorText = socketError ? commonMessages.errors[socketError] ?? socketError : null;
   const [menuOpen, setMenuOpen] = useState(false);
   const [bgColor, setBgColor] = useState(DEFAULT_LEGEND_BG);
@@ -67,31 +63,12 @@ export default function LegendPage() {
   const [hydrated, setHydrated] = useState(false);
   const [savedConfig, setSavedConfig] = useState(false);
   const [copiedShareLink, setCopiedShareLink] = useState(false);
-  const appliedRemoteConfigKeyRef = useRef<string | null>(null);
   const [keepAwake, setKeepAwake] = useState(() => {
     if (typeof window === 'undefined') return true;
     const stored = window.localStorage.getItem('legendKeepAwake');
     if (stored === 'false') return false;
     return true;
   });
-
-  const intervalPrimary = useMemo(
-    () => formatHms(state?.intervalMs ?? 0, digitMode === 'hhmmss'),
-    [state?.intervalMs, digitMode]
-  );
-
-  const remoteLegendConfig = roomState?.legendConfig;
-  const remoteLegendConfigKey = useMemo(() => {
-    if (!remoteLegendConfig) return null;
-    return [
-      remoteLegendConfig.bgColor,
-      remoteLegendConfig.timerColor,
-      remoteLegendConfig.digitMode,
-      remoteLegendConfig.showPlaceholders ? '1' : '0',
-      remoteLegendConfig.showDashedFrame ? '1' : '0',
-      remoteLegendConfig.keepAwake ? '1' : '0'
-    ].join('|');
-  }, [remoteLegendConfig]);
 
   useEffect(() => {
     if (!router.isReady || typeof window === 'undefined') return;
@@ -152,19 +129,6 @@ export default function LegendPage() {
   }, [router.isReady, legendBgQuery, legendTimerQuery, legendDigitsQuery, legendPlaceholdersQuery, legendFrameQuery]);
 
   useEffect(() => {
-    if (!remoteLegendConfig || !remoteLegendConfigKey) return;
-    if (appliedRemoteConfigKeyRef.current === remoteLegendConfigKey) return;
-
-    appliedRemoteConfigKeyRef.current = remoteLegendConfigKey;
-    setBgColor(remoteLegendConfig.bgColor);
-    setTimerColor(remoteLegendConfig.timerColor);
-    setDigitMode(remoteLegendConfig.digitMode);
-    setShowPlaceholders(remoteLegendConfig.showPlaceholders);
-    setShowDashedFrame(remoteLegendConfig.showDashedFrame);
-    setKeepAwake(remoteLegendConfig.keepAwake);
-  }, [remoteLegendConfig, remoteLegendConfigKey]);
-
-  useEffect(() => {
     if (!hydrated || typeof window === 'undefined' || isShareView) return;
     window.localStorage.setItem('legendBg', bgColor);
   }, [bgColor, hydrated, isShareView]);
@@ -204,19 +168,23 @@ export default function LegendPage() {
     document.cookie = `NEXT_LOCALE=${targetLocale}; path=/; max-age=31536000`;
     void router.replace({ pathname: router.pathname, query: router.query }, undefined, { locale: targetLocale });
   }, [router, state?.locale]);
+
+  const intervalPrimary = useMemo(
+    () => formatHms(state?.intervalMs ?? 0, digitMode === 'hhmmss'),
+    [state?.intervalMs, digitMode]
+  );
   const statusTarget = roomId ?? externalSource.meetCode;
   const statusSuffix = statusTarget ? legendMessages.statusRoomSuffix.replace('{roomId}', statusTarget) : '';
   const digitsModeLabel = digitMode === 'hhmmss' ? legendMessages.digitsModes.hhmmss : legendMessages.digitsModes.mmss;
   const digitsButtonLabel = legendMessages.buttons.digits.replace('{mode}', digitsModeLabel);
-  const frameButtonLabel = showDashedFrame
-    ? legendMessages.buttons.frameHide
-    : legendMessages.buttons.frameShow;
+  const frameButtonLabel = showDashedFrame ? legendMessages.buttons.frameHide : legendMessages.buttons.frameShow;
+  const wakeText = keepAwake ? displayMessages.wake.on : displayMessages.wake.off;
+  const wakeButtonLabel = legendMessages.buttons.wake.replace('{state}', wakeText);
   const bgPickerValue = isHexColor(bgColor) ? bgColor : '#000B1E';
   const lightsFrameClassName = getLegendLightsFrameClassName(showDashedFrame);
   const shareLink = useMemo(() => {
     const params = new URLSearchParams();
     if (roomId) params.set('roomId', roomId);
-    if (adminPin) params.set('pin', adminPin);
     if (externalUrl) params.set('externalUrl', externalUrl);
     if (externalMeet) params.set('externalMeet', externalMeet);
     if (externalOrigin) params.set('externalOrigin', externalOrigin);
@@ -226,10 +194,9 @@ export default function LegendPage() {
     params.set('legendDigits', digitMode);
     params.set('legendPlaceholders', showPlaceholders ? '1' : '0');
     params.set('legendFrame', showDashedFrame ? '1' : '0');
-    return `/legend?${params.toString()}`;
+    return `/integration/legend?${params.toString()}`;
   }, [
     roomId,
-    adminPin,
     externalUrl,
     externalMeet,
     externalOrigin,
@@ -263,14 +230,6 @@ export default function LegendPage() {
 
   const handleSaveLegendConfig = useCallback(() => {
     if (typeof window === 'undefined' || isShareView) return;
-    const nextLegendConfig = {
-      bgColor,
-      timerColor,
-      digitMode,
-      showPlaceholders,
-      showDashedFrame,
-      keepAwake
-    };
 
     window.localStorage.setItem('legendBg', bgColor);
     window.localStorage.setItem('legendPlaceholders', showPlaceholders ? 'true' : 'false');
@@ -278,23 +237,40 @@ export default function LegendPage() {
     window.localStorage.setItem('legendDigits', digitMode);
     window.localStorage.setItem('legendTimerColor', timerColor);
     window.localStorage.setItem('legendKeepAwake', keepAwake ? 'true' : 'false');
-    setLegendConfig(nextLegendConfig);
     setSavedConfig(true);
     window.setTimeout(() => setSavedConfig(false), 1500);
-  }, [isShareView, bgColor, showPlaceholders, showDashedFrame, digitMode, timerColor, keepAwake, setLegendConfig]);
+  }, [isShareView, bgColor, showPlaceholders, showDashedFrame, digitMode, timerColor, keepAwake]);
+
+  if (!externalSource.enabled && savedIntegrationLoading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 py-12 text-center text-white">
+        <p className="text-sm uppercase tracking-[0.4em] text-slate-400">{legendMessages.waiting}</p>
+      </main>
+    );
+  }
+
+  if (!externalSource.enabled) {
+    return <MissingIntegrationSource integration={integrationMessages} />;
+  }
+
+  if (externalSource.error) {
+    return (
+      <MissingExternalSourceConfig
+        message={externalSource.error}
+        integration={integrationMessages}
+        errors={commonMessages.errors}
+      />
+    );
+  }
 
   return (
     <>
       <Seo
-        title={`Referee Lights · ${legendMessages.title}`}
-        description={
-          legendMessages.metaDescription ??
-          'Tela auxiliar com timer customizável, modo chroma e status sincronizado para transmissões de eventos IPF.'
-        }
-        canonicalPath="/legend"
+        title="Referee Lights · Integration Legend"
+        description={legendMessages.metaDescription ?? 'External integration legend.'}
+        canonicalPath="/integration/legend"
         noIndex
       />
-
       <main
         className="flex min-h-screen flex-col gap-8 px-[clamp(12px,3vw,30px)] py-[clamp(10px,2.6vh,30px)] text-slate-100"
         style={{ backgroundColor: bgColor }}
@@ -310,11 +286,6 @@ export default function LegendPage() {
                   {commonMessages.labels.status}: {status}
                   {statusSuffix}
                 </span>
-                {!isExternalMode && (!roomId || !adminPin) ? (
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-amber-200">
-                    {legendMessages.missingCredentials}
-                  </span>
-                ) : null}
                 {socketErrorText ? (
                   <span className="text-[10px] uppercase tracking-[0.3em] text-red-300">
                     {legendMessages.errorPrefix} {socketErrorText}
@@ -351,6 +322,13 @@ export default function LegendPage() {
                   className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/20"
                 >
                   {digitsButtonLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setKeepAwake((prev) => !prev)}
+                  className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-white transition hover:bg-white/20"
+                >
+                  {wakeButtonLabel}
                 </button>
                 <button
                   type="button"
@@ -426,9 +404,7 @@ export default function LegendPage() {
                 <span className="text-[10px] text-slate-400">{timerColor.toUpperCase()}</span>
               </label>
               {!wakeActive && keepAwake && (
-                <span className="text-[10px] text-amber-300">
-                  {legendMessages.wakeWarning}
-                </span>
+                <span className="text-[10px] text-amber-300">{legendMessages.wakeWarning}</span>
               )}
             </div>
           </section>
@@ -462,6 +438,7 @@ export default function LegendPage() {
           </div>
         </section>
       </main>
+      {socketError ? <StatusBanner message={socketError} errors={commonMessages.errors} /> : null}
     </>
   );
 }
@@ -477,7 +454,47 @@ function LegendIntervalCard({ intervalLabel, color }: { intervalLabel: string; c
   );
 }
 
-const COLOR_PRESETS = ['#000B1E', '#000000', '#0B0B0B', '#012A4A', '#111723', '#1A1A20'];
+function StatusBanner({ message, errors }: { message: string; errors: Record<string, string> }) {
+  const text = errors[message] ?? message;
+  return (
+    <div className="fixed left-1/2 top-6 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-white/15 px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+      {text}
+    </div>
+  );
+}
+
+function MissingIntegrationSource({ integration }: { integration: ReturnType<typeof getMessages>['common']['integration'] }) {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 py-12 text-center text-white">
+      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">{integration.missingTitle}</h1>
+      <p className="max-w-xl text-sm text-white/70">{integration.missingHint}</p>
+      <p className="max-w-xl text-xs text-white/50">
+        {integration.exampleLabel}: <code>/integration/legend?externalUrl=https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53</code>
+      </p>
+    </main>
+  );
+}
+
+function MissingExternalSourceConfig({
+  message,
+  integration,
+  errors
+}: {
+  message: string;
+  integration: ReturnType<typeof getMessages>['common']['integration'];
+  errors: Record<string, string>;
+}) {
+  const text = errors[message] ?? message;
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 py-12 text-center text-white">
+      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">{integration.invalidSourceTitle}</h1>
+      <p className="max-w-xl text-sm text-white/70">{text}</p>
+      <p className="max-w-xl text-xs text-white/50">
+        {integration.exampleLabel}: <code>/integration/legend?externalUrl=https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53</code>
+      </p>
+    </main>
+  );
+}
 
 function formatHms(ms: number, includeHours: boolean) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -486,21 +503,23 @@ function formatHms(ms: number, includeHours: boolean) {
     .toString()
     .padStart(2, '0');
   const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+
   if (!includeHours) {
     const totalMinutes = Math.floor(totalSeconds / 60)
       .toString()
       .padStart(2, '0');
     return `${totalMinutes}:${seconds}`;
   }
+
   return `${hours}:${minutes}:${seconds}`;
 }
 
-function isLegendBgColor(value: string): boolean {
+function isLegendBgColor(value: string | undefined): value is string {
   return value === 'transparent' || isHexColor(value);
 }
 
-function isHexColor(value: string): boolean {
-  return /^#[0-9A-Fa-f]{6}$/.test(value);
+function isHexColor(value: string | undefined): value is string {
+  return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value);
 }
 
 function parseBooleanQuery(value: string | undefined, defaultValue: boolean): boolean {

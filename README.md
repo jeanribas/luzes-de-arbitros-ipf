@@ -21,6 +21,7 @@ Cada sessão possui `roomId` e PIN. O painel gera automaticamente os QR Codes do
 
 - Redesign do painel admin com cartões descritivos, modal de QR Codes com confirmação para rotação de tokens e atalhos rápidos (Display/Legenda) para alternar entre telas
 - Tela de legenda conectada ao backend com status e mensagens de erro, usando os mesmos parâmetros da sessão
+- Configuração visual da legenda compartilhável: salvar layout (fundo/timer/dígitos/placeholders) e copiar link no modo `view=share`
 - Ajustes de layout no display: escala base menor (90%), cronômetro central 15% maior e padding inferior removido
 - Melhorias de UX gerais (formulários, foco, cópia) e correções nas requisições `POST /rooms`
 

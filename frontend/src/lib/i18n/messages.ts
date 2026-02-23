@@ -16,6 +16,12 @@ type CommonMessages = {
   };
   languageLabel: string;
   languages: Record<AppLocale, string>;
+  integration: {
+    missingTitle: string;
+    invalidSourceTitle: string;
+    missingHint: string;
+    exampleLabel: string;
+  };
 };
 
 type DisplayMessages = {
@@ -67,15 +73,27 @@ type AdminMessages = {
   integration: {
     title: string;
     description: string;
+    openPanel: string;
+    authUserLabel: string;
+    authPasswordLabel: string;
+    authHint: string;
+    authSubmit: string;
     urlLabel: string;
     urlPlaceholder: string;
     save: string;
     clear: string;
+    goToDisplay: string;
+    goToLegend: string;
+    goToTimer: string;
+    linksDisabled: string;
     activeBadge: string;
     saved: string;
     cleared: string;
     invalidUrl: string;
     missingMeet: string;
+    missingRoomId: string;
+    missingRoomIdHint: string;
+    openWithPinHint: string;
   };
   timer: {
     title: string;
@@ -105,6 +123,7 @@ type AdminMessages = {
     showQr: string;
     goToDisplay: string;
     goToLegend: string;
+    goToTimer: string;
   };
   qrMenu: {
     title: string;
@@ -159,6 +178,8 @@ type LegendMessages = {
     paletteClose: string;
     placeholdersShow: string;
     placeholdersHide: string;
+    frameShow: string;
+    frameHide: string;
     digits: string;
     wake: string;
   };
@@ -171,6 +192,15 @@ type LegendMessages = {
     selectColor: string;
     customColor: string;
     timerColor: string;
+    transparentBackground: string;
+  };
+  share: {
+    title: string;
+    description: string;
+    save: string;
+    saved: string;
+    copy: string;
+    copied: string;
   };
   wakeWarning: string;
   waiting: string;
@@ -178,6 +208,7 @@ type LegendMessages = {
 
 type RefereeMessages = {
   metaDescription?: string;
+  selectorTitle: string;
   invalidRoute: string;
   center: {
     title: string;
@@ -222,6 +253,9 @@ const MESSAGES: Record<AppLocale, Messages> = {
         not_authorised: 'Acesso não autorizado.',
         token_revoked: 'Links antigos foram revogados. Gere novos QR Codes.',
         invalid_token: 'Token expirado ou inválido.',
+        invalid_credentials: 'Usuário ou senha inválidos.',
+        external_invalid_url: 'URL externa inválida. Use um endereço completo com http:// ou https://.',
+        external_missing_meet: 'Informe o código da competição em `meet` ou via `externalMeet`.',
         unknown_error: 'Erro inesperado.',
         invalid_payload: 'Dados inválidos enviados ao servidor.'
       },
@@ -236,6 +270,12 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'pt-BR': 'Português',
       'en-US': 'English',
       'es-ES': 'Español'
+    },
+    integration: {
+      missingTitle: 'Integração não configurada',
+      invalidSourceTitle: 'Fonte externa inválida',
+      missingHint: 'Abra este link com `externalUrl` ou `meet`.',
+      exampleLabel: 'Exemplo'
     }
   },
     display: {
@@ -288,15 +328,27 @@ const MESSAGES: Record<AppLocale, Messages> = {
       integration: {
         title: 'Integrações',
         description: 'Defina a URL externa para alimentar display e legenda. Ao salvar, os botões abaixo abrirão no modo integração.',
+        openPanel: 'Integração',
+        authUserLabel: 'Usuário',
+        authPasswordLabel: 'Senha',
+        authHint: 'Use credenciais de integração para salvar ou remover a URL.',
+        authSubmit: 'Acessar',
         urlLabel: 'URL externa',
         urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
         save: 'Salvar integração',
         clear: 'Remover',
+        goToDisplay: 'Display integração',
+        goToLegend: 'Legenda integração',
+        goToTimer: 'Cronômetro integração',
+        linksDisabled: 'Salve uma URL externa para habilitar os links de integração.',
         activeBadge: 'Integração ativa',
         saved: 'Integração atualizada.',
         cleared: 'Integração removida.',
         invalidUrl: 'URL inválida. Use um endereço completo com http:// ou https://.',
-        missingMeet: 'A URL deve conter o parâmetro `meet`.'
+        missingMeet: 'A URL deve conter o parâmetro `meet`.',
+        missingRoomId: 'Informe `roomId` na URL para carregar esta sala.',
+        missingRoomIdHint: 'Exemplo: /integration?roomId=ABCD&pin=1234',
+        openWithPinHint: 'Abra com `pin` para editar: /integration?roomId={roomId}&pin=1234'
       },
       timer: {
         title: 'Timer',
@@ -325,7 +377,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
         waiting: 'Aguardando estado...',
         showQr: 'Mostrar QR Codes',
         goToDisplay: 'Ir para Display',
-        goToLegend: 'Legenda'
+        goToLegend: 'Legenda',
+        goToTimer: 'Cronômetro'
       },
       qrMenu: {
         title: 'Compartilhar com árbitros',
@@ -383,6 +436,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
         paletteClose: 'Fechar Cor',
         placeholdersShow: 'Mostrar Molduras',
         placeholdersHide: 'Ocultar Molduras',
+        frameShow: 'Mostrar Linha',
+        frameHide: 'Ocultar Linha',
         digits: 'Dígitos: {mode}',
         wake: 'Tela ativa: {state}'
       },
@@ -394,7 +449,16 @@ const MESSAGES: Record<AppLocale, Messages> = {
         title: 'Paleta rápida',
         selectColor: 'Selecionar {color}',
         customColor: 'Cor custom',
-        timerColor: 'Cronômetro'
+        timerColor: 'Cronômetro',
+        transparentBackground: 'Fundo transparente'
+      },
+      share: {
+        title: 'Link de compartilhamento',
+        description: 'Abra este link para exibir apenas a legenda, sem os controles de configuração.',
+        save: 'Salvar',
+        saved: 'Salvo',
+        copy: 'Copiar link',
+        copied: 'Copiado'
       },
       wakeWarning: 'Não foi possível ativar o modo sem descanso. Toque na tela ou tente novamente.',
       waiting: 'Aguardando conexão...'
@@ -402,6 +466,7 @@ const MESSAGES: Record<AppLocale, Messages> = {
     referee: {
       metaDescription:
         'Console móvel do árbitro com botões GOOD/NO LIFT, cartões IPF e sincronização em tempo real com o painel Referee Lights.',
+      selectorTitle: 'Selecione a posição do árbitro',
       invalidRoute: 'Rota de árbitro inválida.',
       center: {
         title: 'Árbitro Central',
@@ -437,6 +502,9 @@ const MESSAGES: Record<AppLocale, Messages> = {
         not_authorised: 'Unauthorized access.',
         token_revoked: 'Links have been revoked. Generate new QR Codes.',
         invalid_token: 'Token expired or invalid.',
+        invalid_credentials: 'Invalid username or password.',
+        external_invalid_url: 'Invalid external URL. Use a full address with http:// or https://.',
+        external_missing_meet: 'Provide the competition code using `meet` or `externalMeet`.',
         unknown_error: 'Unexpected error.',
         invalid_payload: 'Invalid data sent to the server.'
       },
@@ -451,6 +519,12 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'pt-BR': 'Português',
       'en-US': 'English',
       'es-ES': 'Español'
+    },
+    integration: {
+      missingTitle: 'Integration not configured',
+      invalidSourceTitle: 'Invalid external source',
+      missingHint: 'Open this link with `externalUrl` or `meet`.',
+      exampleLabel: 'Example'
     }
   },
     display: {
@@ -503,15 +577,27 @@ const MESSAGES: Record<AppLocale, Messages> = {
       integration: {
         title: 'Integrations',
         description: 'Set an external URL to feed display and legend. After saving, the buttons below will open in integration mode.',
+        openPanel: 'Integration',
+        authUserLabel: 'Username',
+        authPasswordLabel: 'Password',
+        authHint: 'Use integration credentials to save or remove the URL.',
+        authSubmit: 'Access',
         urlLabel: 'External URL',
         urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
         save: 'Save integration',
         clear: 'Remove',
+        goToDisplay: 'Integration display',
+        goToLegend: 'Integration legend',
+        goToTimer: 'Integration timer',
+        linksDisabled: 'Save an external URL to enable integration links.',
         activeBadge: 'Integration active',
         saved: 'Integration updated.',
         cleared: 'Integration removed.',
         invalidUrl: 'Invalid URL. Use a full address with http:// or https://.',
-        missingMeet: 'The URL must include the `meet` parameter.'
+        missingMeet: 'The URL must include the `meet` parameter.',
+        missingRoomId: 'Provide `roomId` in the URL to load this room.',
+        missingRoomIdHint: 'Example: /integration?roomId=ABCD&pin=1234',
+        openWithPinHint: 'Open with `pin` to edit: /integration?roomId={roomId}&pin=1234'
       },
       timer: {
         title: 'Timer',
@@ -540,7 +626,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
         waiting: 'Waiting for state...',
         showQr: 'Show QR Codes',
         goToDisplay: 'Open Display',
-        goToLegend: 'Open Legend'
+        goToLegend: 'Open Legend',
+        goToTimer: 'Open Timer'
       },
       qrMenu: {
         title: 'Share with referees',
@@ -598,6 +685,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
         paletteClose: 'Close color',
         placeholdersShow: 'Show frames',
         placeholdersHide: 'Hide frames',
+        frameShow: 'Show dashed line',
+        frameHide: 'Hide dashed line',
         digits: 'Digits: {mode}',
         wake: 'Screen awake: {state}'
       },
@@ -609,7 +698,16 @@ const MESSAGES: Record<AppLocale, Messages> = {
         title: 'Quick palette',
         selectColor: 'Select {color}',
         customColor: 'Custom color',
-        timerColor: 'Timer'
+        timerColor: 'Timer',
+        transparentBackground: 'Transparent background'
+      },
+      share: {
+        title: 'Share link',
+        description: 'Open this link to display only the legend, without configuration controls.',
+        save: 'Save',
+        saved: 'Saved',
+        copy: 'Copy link',
+        copied: 'Copied'
       },
       wakeWarning: 'Could not enable keep-awake mode. Tap the screen or try again.',
       waiting: 'Waiting for connection...'
@@ -617,6 +715,7 @@ const MESSAGES: Record<AppLocale, Messages> = {
     referee: {
       metaDescription:
         'Mobile referee console with GOOD/NO LIFT controls, IPF cards, and real-time sync with the Referee Lights platform.',
+      selectorTitle: 'Select referee position',
       invalidRoute: 'Invalid referee route.',
       center: {
         title: 'Center Referee',
@@ -652,6 +751,9 @@ const MESSAGES: Record<AppLocale, Messages> = {
         not_authorised: 'Acceso no autorizado.',
         token_revoked: 'Los enlaces anteriores fueron revocados. Genera nuevos códigos QR.',
         invalid_token: 'Token expirado o inválido.',
+        invalid_credentials: 'Usuario o contraseña inválidos.',
+        external_invalid_url: 'URL externa inválida. Usa una dirección completa con http:// o https://.',
+        external_missing_meet: 'Informa el código de la competición usando `meet` o `externalMeet`.',
         unknown_error: 'Error inesperado.',
         invalid_payload: 'Datos inválidos enviados al servidor.'
       },
@@ -666,6 +768,12 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'pt-BR': 'Portugués',
       'en-US': 'Inglés',
       'es-ES': 'Español'
+    },
+    integration: {
+      missingTitle: 'Integración no configurada',
+      invalidSourceTitle: 'Fuente externa inválida',
+      missingHint: 'Abre este enlace con `externalUrl` o `meet`.',
+      exampleLabel: 'Ejemplo'
     }
   },
     display: {
@@ -718,15 +826,27 @@ const MESSAGES: Record<AppLocale, Messages> = {
       integration: {
         title: 'Integraciones',
         description: 'Define una URL externa para alimentar display y leyenda. Al guardar, los botones de abajo abrirán en modo integración.',
+        openPanel: 'Integración',
+        authUserLabel: 'Usuario',
+        authPasswordLabel: 'Contraseña',
+        authHint: 'Usa credenciales de integración para guardar o eliminar la URL.',
+        authSubmit: 'Acceder',
         urlLabel: 'URL externa',
         urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
         save: 'Guardar integración',
         clear: 'Quitar',
+        goToDisplay: 'Display integración',
+        goToLegend: 'Leyenda integración',
+        goToTimer: 'Cronómetro integración',
+        linksDisabled: 'Guarda una URL externa para habilitar los enlaces de integración.',
         activeBadge: 'Integración activa',
         saved: 'Integración actualizada.',
         cleared: 'Integración eliminada.',
         invalidUrl: 'URL inválida. Usa una dirección completa con http:// o https://.',
-        missingMeet: 'La URL debe incluir el parámetro `meet`.'
+        missingMeet: 'La URL debe incluir el parámetro `meet`.',
+        missingRoomId: 'Informa `roomId` en la URL para cargar esta sala.',
+        missingRoomIdHint: 'Ejemplo: /integration?roomId=ABCD&pin=1234',
+        openWithPinHint: 'Abre con `pin` para editar: /integration?roomId={roomId}&pin=1234'
       },
       timer: {
         title: 'Temporizador',
@@ -755,7 +875,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
         waiting: 'Esperando estado...',
         showQr: 'Mostrar códigos QR',
         goToDisplay: 'Abrir display',
-        goToLegend: 'Abrir leyenda'
+        goToLegend: 'Abrir leyenda',
+        goToTimer: 'Abrir cronómetro'
       },
       qrMenu: {
         title: 'Compartir con árbitros',
@@ -813,6 +934,8 @@ const MESSAGES: Record<AppLocale, Messages> = {
         paletteClose: 'Cerrar color',
         placeholdersShow: 'Mostrar marcos',
         placeholdersHide: 'Ocultar marcos',
+        frameShow: 'Mostrar línea',
+        frameHide: 'Ocultar línea',
         digits: 'Dígitos: {mode}',
         wake: 'Pantalla activa: {state}'
       },
@@ -824,7 +947,16 @@ const MESSAGES: Record<AppLocale, Messages> = {
         title: 'Paleta rápida',
         selectColor: 'Seleccionar {color}',
         customColor: 'Color personalizado',
-        timerColor: 'Cronómetro'
+        timerColor: 'Cronómetro',
+        transparentBackground: 'Fondo transparente'
+      },
+      share: {
+        title: 'Enlace para compartir',
+        description: 'Abre este enlace para mostrar solo la leyenda, sin controles de configuración.',
+        save: 'Guardar',
+        saved: 'Guardado',
+        copy: 'Copiar enlace',
+        copied: 'Copiado'
       },
       wakeWarning: 'No se pudo activar el modo de mantener despierto. Toca la pantalla o inténtalo de nuevo.',
       waiting: 'Esperando la conexión...'
@@ -832,6 +964,7 @@ const MESSAGES: Record<AppLocale, Messages> = {
     referee: {
       metaDescription:
         'Consola móvil para árbitros con botones GOOD/NO LIFT, tarjetas IPF y sincronización en tiempo real con el panel Referee Lights.',
+      selectorTitle: 'Selecciona la posición del árbitro',
       invalidRoute: 'Ruta de árbitro inválida.',
       center: {
         title: 'Árbitro central',

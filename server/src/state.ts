@@ -5,6 +5,15 @@ export type Phase = 'idle' | 'revealed';
 
 export type Locale = 'pt-BR' | 'en-US' | 'es-ES';
 
+export interface LegendConfig {
+  bgColor: string;
+  timerColor: string;
+  digitMode: 'mmss' | 'hhmmss';
+  showPlaceholders: boolean;
+  showDashedFrame: boolean;
+  keepAwake: boolean;
+}
+
 export interface AppState {
   phase: Phase;
   votes: Record<Judge, VoteValue>;
@@ -17,6 +26,7 @@ export interface AppState {
   intervalRunning: boolean;
   intervalVisible: boolean;
   locale: Locale;
+  legendConfig: LegendConfig;
 }
 
 export interface RoomSnapshot extends AppState {}
@@ -25,6 +35,14 @@ const DEFAULT_TIMER_MS = 60_000;
 const AUTO_CLEAR_MS = 10_000;
 const INTERVAL_TICK_RATE_MS = 200;
 const DEFAULT_LOCALE: Locale = 'pt-BR';
+const DEFAULT_LEGEND_CONFIG: LegendConfig = {
+  bgColor: 'transparent',
+  timerColor: '#FFFFFF',
+  digitMode: 'hhmmss',
+  showPlaceholders: true,
+  showDashedFrame: true,
+  keepAwake: true
+};
 
 export class RoomState {
   private state: AppState & { lastTickAt?: number } = {
@@ -50,7 +68,8 @@ export class RoomState {
     intervalConfiguredMs: 0,
     intervalRunning: false,
     intervalVisible: false,
-    locale: DEFAULT_LOCALE
+    locale: DEFAULT_LOCALE,
+    legendConfig: { ...DEFAULT_LEGEND_CONFIG }
   };
 
   private tickInterval: NodeJS.Timeout | null = null;
@@ -83,7 +102,8 @@ export class RoomState {
       intervalConfiguredMs: this.state.intervalConfiguredMs,
       intervalRunning: this.state.intervalRunning,
       intervalVisible: this.state.intervalVisible,
-      locale: this.state.locale
+      locale: this.state.locale,
+      legendConfig: { ...this.state.legendConfig }
     };
   }
 
@@ -214,6 +234,29 @@ export class RoomState {
   setLocale(locale: Locale) {
     if (this.state.locale === locale) return;
     this.state.locale = locale;
+    this.notify();
+  }
+
+  setLegendConfig(config: LegendConfig) {
+    const nextConfig: LegendConfig = {
+      bgColor: config.bgColor,
+      timerColor: config.timerColor,
+      digitMode: config.digitMode,
+      showPlaceholders: config.showPlaceholders,
+      showDashedFrame: config.showDashedFrame,
+      keepAwake: config.keepAwake
+    };
+    const currentConfig = this.state.legendConfig;
+    const changed =
+      currentConfig.bgColor !== nextConfig.bgColor ||
+      currentConfig.timerColor !== nextConfig.timerColor ||
+      currentConfig.digitMode !== nextConfig.digitMode ||
+      currentConfig.showPlaceholders !== nextConfig.showPlaceholders ||
+      currentConfig.showDashedFrame !== nextConfig.showDashedFrame ||
+      currentConfig.keepAwake !== nextConfig.keepAwake;
+
+    if (!changed) return;
+    this.state.legendConfig = nextConfig;
     this.notify();
   }
 
