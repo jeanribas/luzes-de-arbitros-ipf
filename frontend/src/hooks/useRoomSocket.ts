@@ -64,7 +64,8 @@ export function useRoomSocket(role: ClientRole, options: UseRoomSocketOptions = 
       role,
       roomId: roomId!,
       pin: adminPin,
-      token: refereeToken
+      token: refereeToken,
+      host: typeof window !== 'undefined' ? window.location.hostname : ''
     };
 
     socket.on('connect', () => {
@@ -183,6 +184,7 @@ type RegistrationPayload = {
   roomId: string;
   pin?: string;
   token?: string;
+  host?: string;
 };
 
 type AckResponse = { ok: true } | { error: string };

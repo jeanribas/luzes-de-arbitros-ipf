@@ -33,6 +33,7 @@ interface ClientData {
   refereeToken?: string;
   judgeRole?: Judge;
   connectionId?: number;
+  frontendHost?: string;
 }
 
 type RegistrationPayload = {
@@ -40,6 +41,7 @@ type RegistrationPayload = {
   roomId: string;
   pin?: string;
   token?: string;
+  host?: string;
 };
 
 type VotePayload = {
@@ -288,18 +290,20 @@ export async function createServer() {
       socket.data.adminPin = payload.pin;
       socket.data.refereeToken = payload.token;
       socket.data.judgeRole = isJudge(payload.role) ? payload.role : undefined;
+      socket.data.frontendHost = payload.host ?? '';
 
       if (socket.data.judgeRole) {
         state.setConnected(socket.data.judgeRole, true);
       }
 
+      const clientHost = payload.host ?? socketHost(socket);
       const sessionId = sessionMap.get(payload.roomId) ?? analyticsStore.findSessionByRoomId(payload.roomId);
       const connId = analyticsStore.logConnection(
         sessionId,
         payload.role,
         isJudge(payload.role) ? payload.role : null,
         socketIp(socket),
-        socketHost(socket)
+        clientHost
       );
       if (connId !== null) socket.data.connectionId = connId;
       telemetry.trackConnection(payload.roomId, payload.role, socketIp(socket));
@@ -592,7 +596,7 @@ export async function createServer() {
     for (const [, socket] of io.sockets.sockets) {
       const data = socket.data as ClientData;
       if (!data.roomId) continue;
-      const host = socketHost(socket as unknown as AppSocket);
+      const host = data.frontendHost || socketHost(socket as unknown as AppSocket);
       const ip = socketIp(socket as unknown as AppSocket);
       const geo = geoip.lookup(ip);
       visitors.push({
