@@ -9,16 +9,7 @@ interface Room {
   adminPin: string;
   refereeTokens: RefereeTokens;
   state: RoomState;
-  integration: IntegrationConfig | null;
   createdAt: number;
-}
-
-export interface IntegrationConfig {
-  provider: 'easylifter';
-  externalUrl: string;
-  origin: string;
-  meetCode: string;
-  updatedAt: number;
 }
 
 export interface RoomAccessPayload {
@@ -53,7 +44,6 @@ export class RoomManager {
       adminPin,
       refereeTokens,
       state,
-      integration: null,
       createdAt: Date.now()
     };
 
@@ -103,24 +93,16 @@ export class RoomManager {
     return this.rooms.get(roomId)?.state ?? null;
   }
 
-  getIntegrationConfig(roomId: string): IntegrationConfig | null {
-    const room = this.rooms.get(roomId);
-    if (!room) return null;
-    return room.integration ? { ...room.integration } : null;
+  listRooms(): Array<{ id: string; createdAt: number; connectedJudges: number }> {
+    return [...this.rooms.values()].map((room) => {
+      const snapshot = room.state.getSnapshot();
+      const connectedJudges = [snapshot.connected.left, snapshot.connected.center, snapshot.connected.right].filter(Boolean).length;
+      return { id: room.id, createdAt: room.createdAt, connectedJudges };
+    });
   }
 
-  setIntegrationConfig(roomId: string, config: Omit<IntegrationConfig, 'updatedAt'> | null): IntegrationConfig | null {
-    const room = this.rooms.get(roomId);
-    if (!room) return null;
-    if (!config) {
-      room.integration = null;
-      return null;
-    }
-    room.integration = {
-      ...config,
-      updatedAt: Date.now()
-    };
-    return { ...room.integration };
+  roomCount(): number {
+    return this.rooms.size;
   }
 
   private toRoomAccessPayload(room: Room): RoomAccessPayload {

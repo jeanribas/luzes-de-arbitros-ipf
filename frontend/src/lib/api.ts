@@ -10,22 +10,6 @@ export interface JoinQrCodesResponse {
   };
 }
 
-export interface IntegrationConfig {
-  provider: 'easylifter';
-  externalUrl: string;
-  origin: string;
-  meetCode: string;
-  updatedAt: number;
-}
-
-export interface IntegrationConfigResponse {
-  integration: IntegrationConfig | null;
-}
-
-export interface IntegrationAuthResponse {
-  ok: true;
-}
-
 interface ApiError extends Error {
   code?: string;
   status?: number;
@@ -88,51 +72,138 @@ export function refreshRefereeTokens(roomId: string, adminPin: string) {
   return postJson<JoinQrCodesResponse>(`/rooms/${encodeURIComponent(roomId)}/refresh-ref-tokens`, { adminPin });
 }
 
-export function getIntegrationConfig(roomId: string) {
-  return getJson<IntegrationConfigResponse>(`/rooms/${encodeURIComponent(roomId)}/integration`);
+/* ─── Master Admin types ─── */
+
+export interface MasterStats {
+  totalSessions: number;
+  totalConnections: number;
+  uniqueIps: number;
+  activeRooms: number;
 }
 
-export function getGlobalIntegrationConfig() {
-  return getJson<IntegrationConfigResponse>('/integration/config');
+export interface MasterSession {
+  id: number;
+  room_id: string;
+  created_at: string;
+  closed_at: string | null;
+  connection_count: number;
+  top_country: string | null;
 }
 
-export function authGlobalIntegration(username: string, password: string) {
-  return postJson<IntegrationAuthResponse>('/integration/auth', {
-    username,
-    password
-  });
+export interface MasterSessionsResponse {
+  sessions: MasterSession[];
 }
 
-export function saveIntegrationConfig(roomId: string, adminPin: string, externalUrl: string) {
-  return postJson<IntegrationConfigResponse>(`/rooms/${encodeURIComponent(roomId)}/integration`, {
-    adminPin,
-    provider: 'easylifter',
-    externalUrl
-  });
+export interface MasterGeoResponse {
+  countries: Array<{ country: string; count: number }>;
+  cities: Array<{ city: string; country: string; count: number }>;
 }
 
-export function saveGlobalIntegrationConfig(username: string, password: string, externalUrl: string) {
-  return postJson<IntegrationConfigResponse>('/integration/config', {
-    username,
-    password,
-    provider: 'easylifter',
-    externalUrl
-  });
+export interface MasterActiveResponse {
+  rooms: Array<{ id: string; createdAt: number; connectedJudges: number }>;
 }
 
-export function clearIntegrationConfig(roomId: string, adminPin: string) {
-  return postJson<IntegrationConfigResponse>(`/rooms/${encodeURIComponent(roomId)}/integration`, {
-    adminPin,
-    provider: 'easylifter',
-    externalUrl: ''
-  });
+export interface MasterTimelineResponse {
+  timeline: Array<{ date: string; sessions: number; connections: number }>;
 }
 
-export function clearGlobalIntegrationConfig(username: string, password: string) {
-  return postJson<IntegrationConfigResponse>('/integration/config', {
-    username,
-    password,
-    provider: 'easylifter',
-    externalUrl: ''
-  });
+export interface MasterHourlyResponse {
+  hourly: Array<{ hour: number; count: number }>;
+}
+
+export interface MasterRolesResponse {
+  roles: Array<{ role: string; count: number }>;
+}
+
+export interface MasterDurationResponse {
+  avgMinutes: number;
+  maxMinutes: number;
+  totalHours: number;
+}
+
+export interface MasterActivityResponse {
+  activity: Array<{ minute: string; connections: number }>;
+}
+
+/* ─── Master Admin helpers ─── */
+
+async function getJsonAuth<T>(path: string): Promise<T> {
+  const token = typeof window !== 'undefined' ? sessionStorage.getItem('master_token') : null;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return requestJson<T>(path, { headers });
+}
+
+export function masterAuth(user: string, password: string) {
+  return postJson<{ ok: true; token: string }>('/master/auth', { user, password });
+}
+
+export function getMasterStats() {
+  return getJsonAuth<MasterStats>('/master/stats');
+}
+
+export function getMasterSessions(limit = 20, offset = 0) {
+  return getJsonAuth<MasterSessionsResponse>(`/master/sessions?limit=${limit}&offset=${offset}`);
+}
+
+export function getMasterGeo() {
+  return getJsonAuth<MasterGeoResponse>('/master/geo');
+}
+
+export function getMasterActive() {
+  return getJsonAuth<MasterActiveResponse>('/master/active');
+}
+
+export function getMasterTimeline() {
+  return getJsonAuth<MasterTimelineResponse>('/master/timeline');
+}
+
+export function getMasterHourly() {
+  return getJsonAuth<MasterHourlyResponse>('/master/hourly');
+}
+
+export function getMasterRoles() {
+  return getJsonAuth<MasterRolesResponse>('/master/roles');
+}
+
+export function getMasterDuration() {
+  return getJsonAuth<MasterDurationResponse>('/master/duration');
+}
+
+export function getMasterActivity() {
+  return getJsonAuth<MasterActivityResponse>('/master/activity');
+}
+
+export interface MasterClicksResponse {
+  clicks: Array<{ url: string; count: number; last_click: string }>;
+}
+
+export function getMasterClicks() {
+  return getJsonAuth<MasterClicksResponse>('/master/clicks');
+}
+
+export function trackLinkClick(url: string) {
+  return postJson<{ ok: true }>('/track/click', { url });
+}
+
+export interface MasterInstance {
+  instance_id: string;
+  platform: string;
+  arch: string;
+  node_version: string;
+  uptime_seconds: number;
+  active_rooms: number;
+  total_sessions: number;
+  total_connections: number;
+  unique_ips: number;
+  first_seen: string;
+  last_seen: string;
+}
+
+export interface MasterInstancesResponse {
+  instances: MasterInstance[];
+}
+
+export function getMasterInstances() {
+  return getJsonAuth<MasterInstancesResponse>('/master/instances');
 }

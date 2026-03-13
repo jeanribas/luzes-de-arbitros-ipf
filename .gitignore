@@ -8,6 +8,7 @@ pnpm-debug.log*
 # Output
 server/dist
 server/.env
+server/data
 frontend/.env.local
 frontend/.next
 frontend/out

@@ -3,12 +3,11 @@ import { useRouter } from 'next/router';
 import { useEffect, useMemo } from 'react';
 
 import { Seo } from '@/components/Seo';
+import { FooterBadges } from '@/components/FooterBadges';
 import IntervalCountdown from '@/components/IntervalCountdown';
 import IntervalFull from '@/components/IntervalFull';
 import TimerDisplay from '@/components/TimerDisplay';
-import { useEasyLifterBridge } from '@/hooks/useEasyLifterBridge';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
-import { readQueryValue, resolveEasyLifterSource } from '@/lib/easyLifterSource';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
 
 export default function TimerPage() {
@@ -19,30 +18,9 @@ export default function TimerPage() {
   const commonMessages = messages.common;
   const roomId = typeof router.query.roomId === 'string' ? router.query.roomId : undefined;
   const adminPin = typeof router.query.pin === 'string' ? router.query.pin : undefined;
-  const externalUrl = readQueryValue(router.query.externalUrl);
-  const externalMeet = readQueryValue(router.query.externalMeet) ?? readQueryValue(router.query.meet);
-  const externalOrigin = readQueryValue(router.query.externalOrigin);
 
-  const externalSource = useMemo(
-    () => resolveEasyLifterSource(externalUrl, externalMeet, externalOrigin),
-    [externalMeet, externalOrigin, externalUrl]
-  );
+  const { state, error } = useRoomSocket('display', { roomId, adminPin });
 
-  const isExternalMode = externalSource.enabled;
-
-  const { state: roomState, error: roomError } = useRoomSocket(
-    'display',
-    isExternalMode ? {} : { roomId, adminPin }
-  );
-
-  const { state: externalState, error: externalError } = useEasyLifterBridge({
-    enabled: isExternalMode && !externalSource.error,
-    meetCode: externalSource.meetCode,
-    origin: externalSource.origin
-  });
-
-  const state = isExternalMode ? externalState : roomState;
-  const error = isExternalMode ? externalSource.error ?? externalError : roomError;
   const intervalVisible = Boolean(
     state && state.intervalVisible && state.intervalConfiguredMs > 0 && state.intervalMs > 0
   );
@@ -56,17 +34,7 @@ export default function TimerPage() {
     void router.replace({ pathname: router.pathname, query: router.query }, undefined, { locale: targetLocale });
   }, [router, state?.locale]);
 
-  if (isExternalMode && externalSource.error) {
-    return (
-      <MissingExternalSourceConfig
-        message={externalSource.error}
-        integration={commonMessages.integration}
-        errors={commonMessages.errors}
-      />
-    );
-  }
-
-  if (!isExternalMode && (!roomId || !adminPin)) {
+  if (!roomId || !adminPin) {
     return <MissingTimerCredentials messages={displayMessages} />;
   }
 
@@ -106,6 +74,9 @@ export default function TimerPage() {
         ) : (
           <p className="text-sm uppercase tracking-[0.4em] text-slate-400">{displayMessages.status.waiting}</p>
         )}
+        <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+          <FooterBadges />
+        </div>
       </main>
       {error && <StatusBanner message={error} errors={commonMessages.errors} />}
     </>
@@ -133,27 +104,6 @@ function MissingTimerCredentials({ messages }: { messages: Messages['display'] }
       >
         {messages.missing.goToAdmin}
       </Link>
-    </main>
-  );
-}
-
-function MissingExternalSourceConfig({
-  message,
-  integration,
-  errors
-}: {
-  message: string;
-  integration: Messages['common']['integration'];
-  errors: Record<string, string>;
-}) {
-  const text = errors[message] ?? message;
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 py-12 text-center text-white">
-      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">{integration.invalidSourceTitle}</h1>
-      <p className="max-w-xl text-sm text-white/70">{text}</p>
-      <p className="max-w-xl text-xs text-white/50">
-        {integration.exampleLabel}: <code>/timer?externalUrl=https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53</code>
-      </p>
     </main>
   );
 }

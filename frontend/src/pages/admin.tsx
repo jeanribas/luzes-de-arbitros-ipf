@@ -9,6 +9,7 @@ import { DecisionLights } from '@/components/DecisionLights';
 import TimerDisplay from '@/components/TimerDisplay';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { createRoom, accessRoom, refreshRefereeTokens, type JoinQrCodesResponse } from '@/lib/api';
+import { FooterBadges } from '@/components/FooterBadges';
 import type { Judge } from '@/types/state';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
 import { APP_LOCALES, type AppLocale } from '@/lib/i18n/config';
@@ -17,8 +18,6 @@ import { Seo } from '@/components/Seo';
 interface AdminPageProps {
   networkIps: string[];
 }
-
-const INTEGRATION_STORAGE_KEY_PREFIX = 'admin:integrationUrl';
 
 const previewLayout = {
   gapClass: 'gap-0',
@@ -77,17 +76,8 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
 
   const [qrMenuOpen, setQrMenuOpen] = useState(false);
   const [legendModalOpen, setLegendModalOpen] = useState(false);
-  const [integrationModalOpen, setIntegrationModalOpen] = useState(false);
   const [appOrigin, setAppOrigin] = useState('');
-  const [integrationInput, setIntegrationInput] = useState('');
-  const [integrationUrl, setIntegrationUrl] = useState('');
-  const [integrationError, setIntegrationError] = useState<string | null>(null);
-  const [integrationNotice, setIntegrationNotice] = useState<string | null>(null);
   const configuredQrOrigin = process.env.NEXT_PUBLIC_QR_ORIGIN?.trim();
-  const integrationStorageKey = useMemo(
-    () => `${INTEGRATION_STORAGE_KEY_PREFIX}:${roomId ?? 'default'}`,
-    [roomId]
-  );
 
   const credentialsReady = Boolean(router.isReady && roomId && adminPin);
   const roomReady = Boolean(roomAccess && roomAccess.roomId === roomId);
@@ -142,16 +132,6 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
       setAppOrigin(`${protocolWithSlashes}${host}${port}`);
     }
   }, [networkIps, configuredQrOrigin]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem(integrationStorageKey) ?? '';
-    setIntegrationUrl(stored);
-    setIntegrationInput(stored);
-    setIntegrationError(null);
-    setIntegrationNotice(null);
-  }, [integrationStorageKey]);
-
 
   const socketOptions = useMemo(() => {
     if (roomReady && roomId && adminPin) {
@@ -259,10 +239,6 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
   const displayLink = buildRoomViewHref('/display', roomId, adminPin);
   const legendLink = buildRoomViewHref('/legend', roomId, adminPin);
   const timerLink = buildRoomViewHref('/timer', roomId, adminPin);
-  const integrationDisplayLink = buildIntegrationViewHref('/integration/display', integrationUrl);
-  const integrationLegendLink = buildIntegrationViewHref('/integration/legend', integrationUrl);
-  const integrationTimerLink = buildIntegrationViewHref('/integration/timer', integrationUrl);
-
   const roomErrorMessage = formatApiError(roomErrorCode, commonMessages.errors);
   const socketErrorMessage = formatApiError(socketError, commonMessages.errors);
 
@@ -322,58 +298,6 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
       setTokenRefreshing(false);
     }
   }, [roomId, adminPin]);
-
-  const handleSaveIntegration = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    const rawValue = integrationInput.trim();
-
-    if (!rawValue) {
-      window.localStorage.removeItem(integrationStorageKey);
-      setIntegrationUrl('');
-      setIntegrationInput('');
-      setIntegrationError(null);
-      setIntegrationNotice(adminMessages.integration.cleared);
-      return;
-    }
-
-    let parsed: URL;
-    try {
-      parsed = new URL(rawValue);
-    } catch {
-      setIntegrationError(adminMessages.integration.invalidUrl);
-      setIntegrationNotice(null);
-      return;
-    }
-
-    if (!parsed.searchParams.get('meet')) {
-      setIntegrationError(adminMessages.integration.missingMeet);
-      setIntegrationNotice(null);
-      return;
-    }
-
-    const normalized = parsed.toString();
-    window.localStorage.setItem(integrationStorageKey, normalized);
-    setIntegrationUrl(normalized);
-    setIntegrationInput(normalized);
-    setIntegrationError(null);
-    setIntegrationNotice(adminMessages.integration.saved);
-  }, [
-    adminMessages.integration.cleared,
-    adminMessages.integration.invalidUrl,
-    adminMessages.integration.missingMeet,
-    adminMessages.integration.saved,
-    integrationInput,
-    integrationStorageKey
-  ]);
-
-  const handleClearIntegration = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.removeItem(integrationStorageKey);
-    setIntegrationUrl('');
-    setIntegrationInput('');
-    setIntegrationError(null);
-    setIntegrationNotice(adminMessages.integration.cleared);
-  }, [adminMessages.integration.cleared, integrationStorageKey]);
 
   const pageHead = (
     <Seo
@@ -697,6 +621,7 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
             </div>
           </section>
         </section>
+        <FooterBadges />
       </main>
       {(roomErrorMessage || socketErrorMessage) && (
         <StatusBanner message={roomErrorMessage ?? socketErrorMessage ?? ''} />
@@ -719,37 +644,6 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
           onClose={() => setLegendModalOpen(false)}
           title={adminMessages.preview.goToLegend}
           closeLabel={commonMessages.srOnly.close}
-        />
-      )}
-      {integrationModalOpen && (
-        <IntegrationModal
-          title={adminMessages.integration.title}
-          description={adminMessages.integration.description}
-          urlLabel={adminMessages.integration.urlLabel}
-          urlPlaceholder={adminMessages.integration.urlPlaceholder}
-          saveLabel={adminMessages.integration.save}
-          clearLabel={adminMessages.integration.clear}
-          activeBadge={adminMessages.integration.activeBadge}
-          openDisplayLabel={adminMessages.integration.goToDisplay}
-          openLegendLabel={adminMessages.integration.goToLegend}
-          openTimerLabel={adminMessages.integration.goToTimer}
-          emptyLinksLabel={adminMessages.integration.linksDisabled}
-          inputValue={integrationInput}
-          onInputChange={(value) => {
-            setIntegrationInput(value);
-            if (integrationError) setIntegrationError(null);
-            if (integrationNotice) setIntegrationNotice(null);
-          }}
-          onSave={handleSaveIntegration}
-          onClear={handleClearIntegration}
-          onClose={() => setIntegrationModalOpen(false)}
-          closeLabel={commonMessages.srOnly.close}
-          integrationError={integrationError}
-          integrationNotice={integrationNotice}
-          displayLink={integrationDisplayLink}
-          legendLink={integrationLegendLink}
-          timerLink={integrationTimerLink}
-          isActive={Boolean(integrationUrl.trim())}
         />
       )}
     </>
@@ -796,170 +690,6 @@ function LegendPreviewModal({
           className="h-full w-full"
           loading="lazy"
         />
-      </div>
-    </div>
-  );
-}
-
-function IntegrationModal({
-  title,
-  description,
-  urlLabel,
-  urlPlaceholder,
-  saveLabel,
-  clearLabel,
-  activeBadge,
-  openDisplayLabel,
-  openLegendLabel,
-  openTimerLabel,
-  emptyLinksLabel,
-  inputValue,
-  onInputChange,
-  onSave,
-  onClear,
-  onClose,
-  closeLabel,
-  integrationError,
-  integrationNotice,
-  displayLink,
-  legendLink,
-  timerLink,
-  isActive
-}: {
-  title: string;
-  description: string;
-  urlLabel: string;
-  urlPlaceholder: string;
-  saveLabel: string;
-  clearLabel: string;
-  activeBadge: string;
-  openDisplayLabel: string;
-  openLegendLabel: string;
-  openTimerLabel: string;
-  emptyLinksLabel: string;
-  inputValue: string;
-  onInputChange: (value: string) => void;
-  onSave: () => void;
-  onClear: () => void;
-  onClose: () => void;
-  closeLabel: string;
-  integrationError: string | null;
-  integrationNotice: string | null;
-  displayLink: string;
-  legendLink: string;
-  timerLink: string;
-  isActive: boolean;
-}) {
-  const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (event.currentTarget === event.target) {
-      onClose();
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-6 py-10"
-      onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div className="relative w-full max-w-3xl rounded-3xl border border-white/10 bg-[#0F141F] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-6 top-6 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-        >
-          <span className="sr-only">{closeLabel}</span>
-          ×
-        </button>
-        <div className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold uppercase tracking-[0.4em] text-white">{title}</h2>
-          <p className="text-sm text-slate-300">{description}</p>
-        </div>
-
-        <div className="mt-6 flex flex-col gap-4">
-          <label className="flex flex-col gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              {urlLabel}
-            </span>
-            <input
-              type="url"
-              value={inputValue}
-              onChange={(event) => onInputChange(event.target.value)}
-              placeholder={urlPlaceholder}
-              className="min-h-[44px] rounded border border-slate-700 bg-slate-950 px-3 text-sm font-medium text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
-            />
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              className="min-h-[48px] rounded-lg bg-slate-200 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-900 transition hover:bg-slate-100"
-              onClick={onSave}
-            >
-              {saveLabel}
-            </button>
-            <button
-              type="button"
-              className="min-h-[48px] rounded-lg bg-slate-700 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-slate-600"
-              onClick={onClear}
-            >
-              {clearLabel}
-            </button>
-          </div>
-
-          {integrationError && <span className="text-xs text-rose-300">{integrationError}</span>}
-          {integrationNotice && <span className="text-xs text-emerald-300">{integrationNotice}</span>}
-          {isActive && (
-            <div className="w-fit rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-100">
-              {activeBadge}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Link
-            href={displayLink}
-            target="_blank"
-            rel="noreferrer"
-            aria-disabled={!isActive}
-            className={`inline-flex min-h-[48px] items-center justify-center rounded-lg border px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] transition ${
-              isActive
-                ? 'border-cyan-300/35 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'
-                : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'
-            }`}
-          >
-            {openDisplayLabel}
-          </Link>
-          <Link
-            href={legendLink}
-            target="_blank"
-            rel="noreferrer"
-            aria-disabled={!isActive}
-            className={`inline-flex min-h-[48px] items-center justify-center rounded-lg border px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] transition ${
-              isActive
-                ? 'border-cyan-300/35 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'
-                : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'
-            }`}
-          >
-            {openLegendLabel}
-          </Link>
-          <Link
-            href={timerLink}
-            target="_blank"
-            rel="noreferrer"
-            aria-disabled={!isActive}
-            className={`inline-flex min-h-[48px] items-center justify-center rounded-lg border px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] transition ${
-              isActive
-                ? 'border-cyan-300/35 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'
-                : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'
-            }`}
-          >
-            {openTimerLabel}
-          </Link>
-        </div>
-        {!isActive && <p className="mt-3 text-xs text-slate-500">{emptyLinksLabel}</p>}
       </div>
     </div>
   );
@@ -1095,10 +825,12 @@ function RoomSetup(props: {
             {error}
           </div>
         )}
+        <FooterBadges />
       </div>
     </main>
   );
 }
+
 
 function QrMenu({
   targets,
@@ -1226,17 +958,6 @@ function buildRoomViewHref(
     return `${path}?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`;
   }
   return path;
-}
-
-function buildIntegrationViewHref(
-  path: '/integration/display' | '/integration/legend' | '/integration/timer',
-  integrationUrl: string
-) {
-  const trimmedIntegration = integrationUrl.trim();
-  if (!trimmedIntegration) {
-    return path;
-  }
-  return `${path}?externalUrl=${encodeURIComponent(trimmedIntegration)}`;
 }
 
 function normalizeConfiguredOrigin(value: string | undefined, defaultProtocol: string) {

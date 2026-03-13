@@ -4,8 +4,11 @@ import type { FastifyPluginCallback } from 'fastify';
 import fastifySocketIO from 'fastify-socket.io';
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 
+import { AnalyticsStore } from './analytics.js';
 import { config } from './config.js';
+import { generateMasterToken, validateCredentials, verifyMasterToken } from './master-auth.js';
 import { RoomManager } from './rooms.js';
+import { Telemetry } from './telemetry.js';
 import {
   type AppState,
   type CardValue,
@@ -28,6 +31,7 @@ interface ClientData {
   adminPin?: string;
   refereeToken?: string;
   judgeRole?: Judge;
+  connectionId?: number;
 }
 
 type RegistrationPayload = {
@@ -61,27 +65,6 @@ type LocalePayload = {
 
 type LegendConfigPayload = {
   config: LegendConfig;
-};
-
-type IntegrationProvider = 'easylifter';
-
-type IntegrationConfigPayload = {
-  provider?: IntegrationProvider;
-  externalUrl?: string;
-};
-
-type RoomIntegrationPayload = IntegrationConfigPayload & {
-  adminPin?: string;
-};
-
-type GlobalIntegrationPayload = IntegrationConfigPayload & {
-  username?: string;
-  password?: string;
-};
-
-type IntegrationAuthPayload = {
-  username?: string;
-  password?: string;
 };
 
 type AckResponse = { ok: true } | { error: string };
@@ -162,12 +145,31 @@ export async function createServer() {
   const roomManager = new RoomManager((roomId, snapshot) => {
     io.to(roomChannel(roomId)).emit('state:update', snapshot);
   });
-  let globalIntegration: ReturnType<typeof toPersistedIntegration> | null = null;
+  const analyticsStore = new AnalyticsStore(config.ANALYTICS_DB_PATH);
+  const telemetry = new Telemetry(config.TELEMETRY_URL, config.TELEMETRY_ENABLED);
+  telemetry.setStatsProvider(() => analyticsStore.getStats(roomManager.roomCount()));
+  const sessionMap = new Map<string, number>();
+
+  function extractIp(request: { ip: string; headers: Record<string, string | string[] | undefined> }): string {
+    const forwarded = request.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+    return request.ip ?? '';
+  }
+
+  function socketIp(socket: AppSocket): string {
+    const forwarded = socket.handshake.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+    return socket.handshake.address ?? '';
+  }
 
   app.get('/health', async () => ({ status: 'ok' }));
 
-  app.post('/rooms', async (_, reply) => {
+  app.post('/rooms', async (request, reply) => {
     const data = roomManager.createRoom();
+    const sessionId = analyticsStore.logSessionCreated(data.roomId, data.adminPin);
+    if (sessionId !== null) sessionMap.set(data.roomId, sessionId);
+    telemetry.trackSessionCreated(data.roomId);
+    analyticsStore.logAccess('room_created', data.roomId, extractIp(request));
     reply.code(201);
     return data;
   });
@@ -226,86 +228,6 @@ export async function createServer() {
     return payload;
   });
 
-  app.get<{
-    Params: { roomId: string };
-  }>('/rooms/:roomId/integration', async (request, reply) => {
-    const { roomId } = request.params;
-    const state = roomManager.getRoomState(roomId);
-    if (!state) {
-      reply.code(404);
-      return { error: 'room_not_found' };
-    }
-
-    return { integration: roomManager.getIntegrationConfig(roomId) };
-  });
-
-  app.post<{
-    Params: { roomId: string };
-    Body: RoomIntegrationPayload;
-  }>('/rooms/:roomId/integration', async (request, reply) => {
-    const { roomId } = request.params;
-    const { adminPin } = request.body ?? {};
-
-    const state = roomManager.getRoomState(roomId);
-    if (!state) {
-      reply.code(404);
-      return { error: 'room_not_found' };
-    }
-
-    if (!roomManager.verifyAdminPin(roomId, adminPin)) {
-      reply.code(403);
-      return { error: 'invalid_pin' };
-    }
-
-    const parsedIntegration = parseIntegrationPayload(request.body);
-    if (!parsedIntegration.ok) {
-      reply.code(parsedIntegration.status);
-      return { error: parsedIntegration.error };
-    }
-
-    const integration = roomManager.setIntegrationConfig(roomId, parsedIntegration.integration);
-    return { integration };
-  });
-
-  app.get('/integration/config', async () => {
-    return { integration: globalIntegration };
-  });
-
-  app.post<{
-    Body: IntegrationAuthPayload;
-  }>('/integration/auth', async (request, reply) => {
-    const username = request.body?.username?.trim() ?? '';
-    const password = request.body?.password?.trim() ?? '';
-
-    if (!isIntegrationCredentialsValid(username, password)) {
-      reply.code(403);
-      return { error: 'invalid_credentials' };
-    }
-
-    return { ok: true };
-  });
-
-  app.post<{
-    Body: GlobalIntegrationPayload;
-  }>('/integration/config', async (request, reply) => {
-    const username = request.body?.username?.trim() ?? '';
-    const password = request.body?.password?.trim() ?? '';
-
-    if (!isIntegrationCredentialsValid(username, password)) {
-      reply.code(403);
-      return { error: 'invalid_credentials' };
-    }
-
-    const parsedIntegration = parseIntegrationPayload(request.body);
-    if (!parsedIntegration.ok) {
-      reply.code(parsedIntegration.status);
-      return { error: parsedIntegration.error };
-    }
-
-    globalIntegration = toPersistedIntegration(parsedIntegration.integration);
-    return { integration: globalIntegration };
-  });
-
   io.on('connection', (socket: AppSocket) => {
     socket.data = { role: VIEWER_ROLE };
 
@@ -356,6 +278,16 @@ export async function createServer() {
       if (socket.data.judgeRole) {
         state.setConnected(socket.data.judgeRole, true);
       }
+
+      const sessionId = sessionMap.get(payload.roomId) ?? analyticsStore.findSessionByRoomId(payload.roomId);
+      const connId = analyticsStore.logConnection(
+        sessionId,
+        payload.role,
+        isJudge(payload.role) ? payload.role : null,
+        socketIp(socket)
+      );
+      if (connId !== null) socket.data.connectionId = connId;
+      telemetry.trackConnection(payload.roomId, payload.role, socketIp(socket));
 
       ack?.({ ok: true });
       socket.emit('state:update', state.getSnapshot());
@@ -509,12 +441,121 @@ export async function createServer() {
 
     socket.on('disconnect', (reason: string) => {
       app.log.info({ event: 'disconnect', role: socket.data.role, reason });
-      const { roomId, judgeRole } = socket.data;
+      const { roomId, judgeRole, connectionId } = socket.data;
       if (roomId && judgeRole) {
         const state = roomManager.getRoomState(roomId);
         state?.setConnected(judgeRole, false);
       }
+      if (connectionId) analyticsStore.logDisconnection(connectionId);
+      telemetry.trackDisconnection(roomId ?? '', socket.data.role);
     });
+  });
+
+  // --- Master Admin Endpoints ---
+
+  app.post<{ Body: { user?: string; password?: string } }>('/master/auth', async (request, reply) => {
+    const user = request.body?.user?.trim() ?? '';
+    const password = request.body?.password?.trim() ?? '';
+    if (!config.MASTER_USER || !config.MASTER_PASSWORD) {
+      reply.code(503);
+      return { error: 'master_not_configured' };
+    }
+    if (!validateCredentials(user, password)) {
+      reply.code(403);
+      return { error: 'invalid_credentials' };
+    }
+    return { ok: true, token: generateMasterToken(user) };
+  });
+
+  function requireMaster(request: { headers: Record<string, string | string[] | undefined> }): boolean {
+    const auth = request.headers.authorization;
+    if (typeof auth !== 'string' || !auth.startsWith('Bearer ')) return false;
+    return verifyMasterToken(auth.slice(7));
+  }
+
+  app.get('/master/stats', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return analyticsStore.getStats(roomManager.roomCount());
+  });
+
+  app.get<{ Querystring: { limit?: string; offset?: string } }>('/master/sessions', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    const limit = Math.min(100, Math.max(1, Number(request.query.limit) || 20));
+    const offset = Math.max(0, Number(request.query.offset) || 0);
+    return { sessions: analyticsStore.getRecentSessions(limit, offset) };
+  });
+
+  app.get('/master/geo', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return analyticsStore.getGeoDistribution();
+  });
+
+  app.get('/master/timeline', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { timeline: analyticsStore.getTimeline() };
+  });
+
+  app.get('/master/hourly', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { hourly: analyticsStore.getHourlyDistribution() };
+  });
+
+  app.get('/master/roles', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { roles: analyticsStore.getRoleBreakdown() };
+  });
+
+  app.get('/master/duration', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return analyticsStore.getDurationStats();
+  });
+
+  app.get('/master/activity', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { activity: analyticsStore.getRecentActivity() };
+  });
+
+  // --- Telemetry Endpoints (receive from all instances) ---
+
+  app.post('/telemetry/events', async (request, reply) => {
+    // Receive event batches from instances (fire-and-forget on their side)
+    return { ok: true };
+  });
+
+  app.post('/telemetry/heartbeat', async (request, reply) => {
+    const body = request.body as any;
+    if (!body?.instanceId) { reply.code(400); return { error: 'missing_instance_id' }; }
+    analyticsStore.upsertHeartbeat({
+      instanceId: body.instanceId,
+      platform: body.platform ?? '',
+      arch: body.arch ?? '',
+      nodeVersion: body.nodeVersion ?? '',
+      uptimeSeconds: body.uptimeSeconds ?? 0,
+      stats: body.stats ?? null
+    });
+    return { ok: true };
+  });
+
+  app.get('/master/instances', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { instances: analyticsStore.getInstances() };
+  });
+
+  app.post<{ Body: { url?: string } }>('/track/click', async (request, reply) => {
+    const url = request.body?.url?.trim() ?? '';
+    if (!url) { reply.code(400); return { error: 'missing_url' }; }
+    analyticsStore.logAccess('link_click', url, extractIp(request));
+    return { ok: true };
+  });
+
+  app.get('/master/clicks', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { clicks: analyticsStore.getLinkClicks() };
+  });
+
+  app.get('/master/active', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { rooms: roomManager.listRooms() };
   });
 
   return app;
@@ -608,72 +649,3 @@ function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value);
 }
 
-function parseIntegrationPayload(input: IntegrationConfigPayload | undefined):
-  | {
-      ok: true;
-      integration: {
-        provider: IntegrationProvider;
-        externalUrl: string;
-        origin: string;
-        meetCode: string;
-      } | null;
-    }
-  | {
-      ok: false;
-      status: number;
-      error: string;
-    } {
-  const payload = input ?? {};
-  const provider = payload.provider ?? 'easylifter';
-  if (provider !== 'easylifter') {
-    return { ok: false, status: 400, error: 'invalid_payload' };
-  }
-
-  const rawExternalUrl = payload.externalUrl?.trim() ?? '';
-  if (!rawExternalUrl) {
-    return { ok: true, integration: null };
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(rawExternalUrl);
-  } catch {
-    return { ok: false, status: 400, error: 'external_invalid_url' };
-  }
-
-  const meetCode = parsed.searchParams.get('meet')?.trim();
-  if (!meetCode) {
-    return { ok: false, status: 400, error: 'external_missing_meet' };
-  }
-
-  return {
-    ok: true,
-    integration: {
-      provider,
-      externalUrl: parsed.toString(),
-      origin: parsed.origin,
-      meetCode
-    }
-  };
-}
-
-function toPersistedIntegration(
-  integration:
-    | {
-        provider: IntegrationProvider;
-        externalUrl: string;
-        origin: string;
-        meetCode: string;
-      }
-    | null
-) {
-  if (!integration) return null;
-  return {
-    ...integration,
-    updatedAt: Date.now()
-  };
-}
-
-function isIntegrationCredentialsValid(username: string, password: string) {
-  return username === config.INTEGRATION_USER && password === config.INTEGRATION_PASSWORD;
-}

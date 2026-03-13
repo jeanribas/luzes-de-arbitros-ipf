@@ -6,6 +6,7 @@ import { CardValue, Judge, VoteValue } from '@/types/state';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
 import { Seo } from '@/components/Seo';
+import { FooterBadges } from '@/components/FooterBadges';
 
 const CARD_OPTIONS: Array<{ value: Exclude<CardValue, null>; color: string; glyph: string }> = [
   { value: 1, color: 'bg-red-500 text-white', glyph: '1' },
@@ -273,6 +274,9 @@ function CenterLayout(props: {
         })}
       </section>
 
+      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+        <FooterBadges />
+      </div>
     </main>
   );
 }
@@ -326,6 +330,9 @@ function SideLayout(props: {
           );
         })}
       </section>
+      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+        <FooterBadges />
+      </div>
     </main>
   );
 }
@@ -338,6 +345,9 @@ function MissingRefCredentials({ judge, messages }: { judge: Judge; messages: Me
         {messages.missing.title}
       </h1>
       <p className="max-w-md text-sm text-slate-300">{description}</p>
+      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+        <FooterBadges />
+      </div>
     </main>
   );
 }

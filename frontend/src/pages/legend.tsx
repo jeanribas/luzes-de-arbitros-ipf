@@ -2,22 +2,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 
 import { DecisionLights } from '@/components/DecisionLights';
-import { useEasyLifterBridge } from '@/hooks/useEasyLifterBridge';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useWakeLock } from '@/hooks/useWakeLock';
-import { readQueryValue, resolveEasyLifterSource } from '@/lib/easyLifterSource';
 import { getMessages } from '@/lib/i18n/messages';
 import { Seo } from '@/components/Seo';
+import { FooterBadges } from '@/components/FooterBadges';
 
 const DEFAULT_LEGEND_BG = 'transparent';
+
+function readQueryValue(raw: string | string[] | undefined): string | undefined {
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'string' && raw[0].trim()) return raw[0].trim();
+  return undefined;
+}
 
 export default function LegendPage() {
   const router = useRouter();
   const roomId = typeof router.query.roomId === 'string' ? router.query.roomId.toUpperCase() : undefined;
   const adminPin = typeof router.query.pin === 'string' ? router.query.pin : undefined;
-  const externalUrl = readQueryValue(router.query.externalUrl);
-  const externalMeet = readQueryValue(router.query.externalMeet) ?? readQueryValue(router.query.meet);
-  const externalOrigin = readQueryValue(router.query.externalOrigin);
   const viewMode = readQueryValue(router.query.view);
   const legendBgQuery = readQueryValue(router.query.legendBg);
   const legendTimerQuery = readQueryValue(router.query.legendTimer);
@@ -30,33 +32,18 @@ export default function LegendPage() {
   const commonMessages = messages.common;
   const isShareView = viewMode === 'share';
 
-  const externalSource = useMemo(
-    () => resolveEasyLifterSource(externalUrl, externalMeet, externalOrigin),
-    [externalMeet, externalOrigin, externalUrl]
-  );
-
-  const isExternalMode = externalSource.enabled;
-
   const socketOptions = useMemo(
     () => (roomId && adminPin ? { roomId, adminPin } : {}),
     [roomId, adminPin]
   );
 
   const {
-    state: roomState,
-    status: roomStatus,
-    error: roomSocketError,
+    state,
+    status,
+    error: socketError,
     setLegendConfig
   } = useRoomSocket('display', socketOptions);
-  const { state: externalState, status: externalStatus, error: externalError } = useEasyLifterBridge({
-    enabled: isExternalMode && !externalSource.error,
-    meetCode: externalSource.meetCode,
-    origin: externalSource.origin
-  });
 
-  const state = isExternalMode ? externalState : roomState;
-  const status = isExternalMode ? externalStatus : roomStatus;
-  const socketError = isExternalMode ? externalSource.error ?? externalError : roomSocketError;
   const socketErrorText = socketError ? commonMessages.errors[socketError] ?? socketError : null;
   const [menuOpen, setMenuOpen] = useState(false);
   const [bgColor, setBgColor] = useState(DEFAULT_LEGEND_BG);
@@ -80,7 +67,7 @@ export default function LegendPage() {
     [state?.intervalMs, digitMode]
   );
 
-  const remoteLegendConfig = roomState?.legendConfig;
+  const remoteLegendConfig = state?.legendConfig;
   const remoteLegendConfigKey = useMemo(() => {
     if (!remoteLegendConfig) return null;
     return [
@@ -204,8 +191,7 @@ export default function LegendPage() {
     document.cookie = `NEXT_LOCALE=${targetLocale}; path=/; max-age=31536000`;
     void router.replace({ pathname: router.pathname, query: router.query }, undefined, { locale: targetLocale });
   }, [router, state?.locale]);
-  const statusTarget = roomId ?? externalSource.meetCode;
-  const statusSuffix = statusTarget ? legendMessages.statusRoomSuffix.replace('{roomId}', statusTarget) : '';
+  const statusSuffix = roomId ? legendMessages.statusRoomSuffix.replace('{roomId}', roomId) : '';
   const digitsModeLabel = digitMode === 'hhmmss' ? legendMessages.digitsModes.hhmmss : legendMessages.digitsModes.mmss;
   const digitsButtonLabel = legendMessages.buttons.digits.replace('{mode}', digitsModeLabel);
   const frameButtonLabel = showDashedFrame
@@ -217,9 +203,6 @@ export default function LegendPage() {
     const params = new URLSearchParams();
     if (roomId) params.set('roomId', roomId);
     if (adminPin) params.set('pin', adminPin);
-    if (externalUrl) params.set('externalUrl', externalUrl);
-    if (externalMeet) params.set('externalMeet', externalMeet);
-    if (externalOrigin) params.set('externalOrigin', externalOrigin);
     params.set('view', 'share');
     params.set('legendBg', bgColor);
     params.set('legendTimer', timerColor);
@@ -230,9 +213,6 @@ export default function LegendPage() {
   }, [
     roomId,
     adminPin,
-    externalUrl,
-    externalMeet,
-    externalOrigin,
     bgColor,
     timerColor,
     digitMode,
@@ -310,7 +290,7 @@ export default function LegendPage() {
                   {commonMessages.labels.status}: {status}
                   {statusSuffix}
                 </span>
-                {!isExternalMode && (!roomId || !adminPin) ? (
+                {(!roomId || !adminPin) ? (
                   <span className="text-[10px] uppercase tracking-[0.3em] text-amber-200">
                     {legendMessages.missingCredentials}
                   </span>
@@ -461,6 +441,9 @@ export default function LegendPage() {
             </div>
           </div>
         </section>
+        <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+          <FooterBadges />
+        </div>
       </main>
     </>
   );

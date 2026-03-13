@@ -16,12 +16,6 @@ type CommonMessages = {
   };
   languageLabel: string;
   languages: Record<AppLocale, string>;
-  integration: {
-    missingTitle: string;
-    invalidSourceTitle: string;
-    missingHint: string;
-    exampleLabel: string;
-  };
 };
 
 type DisplayMessages = {
@@ -69,31 +63,6 @@ type AdminMessages = {
   header: {
     title: string;
     generatingLinks: string;
-  };
-  integration: {
-    title: string;
-    description: string;
-    openPanel: string;
-    authUserLabel: string;
-    authPasswordLabel: string;
-    authHint: string;
-    authSubmit: string;
-    urlLabel: string;
-    urlPlaceholder: string;
-    save: string;
-    clear: string;
-    goToDisplay: string;
-    goToLegend: string;
-    goToTimer: string;
-    linksDisabled: string;
-    activeBadge: string;
-    saved: string;
-    cleared: string;
-    invalidUrl: string;
-    missingMeet: string;
-    missingRoomId: string;
-    missingRoomIdHint: string;
-    openWithPinHint: string;
   };
   timer: {
     title: string;
@@ -165,6 +134,11 @@ type AdminMessages = {
     connectingTitle: string;
     connectingDescription: string;
   };
+  footer: {
+    openSource: string;
+    hostedBy: string;
+    hostedByName: string;
+  };
 };
 
 type LegendMessages = {
@@ -229,12 +203,61 @@ type RefereeMessages = {
   };
 };
 
+type MasterMessages = {
+  metaDescription: string;
+  login: {
+    title: string;
+    userLabel: string;
+    passwordLabel: string;
+    submit: string;
+    error: string;
+    notConfigured: string;
+  };
+  header: {
+    title: string;
+    logout: string;
+  };
+  stats: {
+    totalSessions: string;
+    totalConnections: string;
+    activeRooms: string;
+    uniqueIps: string;
+  };
+  sessions: {
+    title: string;
+    roomId: string;
+    created: string;
+    connections: string;
+    country: string;
+    previous: string;
+    next: string;
+    empty: string;
+  };
+  geo: {
+    title: string;
+    countries: string;
+    cities: string;
+    country: string;
+    city: string;
+    count: string;
+    empty: string;
+  };
+  active: {
+    title: string;
+    room: string;
+    judges: string;
+    created: string;
+    empty: string;
+  };
+};
+
 export type Messages = {
   common: CommonMessages;
   display: DisplayMessages;
   admin: AdminMessages;
   legend: LegendMessages;
   referee: RefereeMessages;
+  master: MasterMessages;
 };
 
 const MESSAGES: Record<AppLocale, Messages> = {
@@ -254,8 +277,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
         token_revoked: 'Links antigos foram revogados. Gere novos QR Codes.',
         invalid_token: 'Token expirado ou inválido.',
         invalid_credentials: 'Usuário ou senha inválidos.',
-        external_invalid_url: 'URL externa inválida. Use um endereço completo com http:// ou https://.',
-        external_missing_meet: 'Informe o código da competição em `meet` ou via `externalMeet`.',
         unknown_error: 'Erro inesperado.',
         invalid_payload: 'Dados inválidos enviados ao servidor.'
       },
@@ -270,12 +291,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'pt-BR': 'Português',
       'en-US': 'English',
       'es-ES': 'Español'
-    },
-    integration: {
-      missingTitle: 'Integração não configurada',
-      invalidSourceTitle: 'Fonte externa inválida',
-      missingHint: 'Abra este link com `externalUrl` ou `meet`.',
-      exampleLabel: 'Exemplo'
     }
   },
     display: {
@@ -324,31 +339,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
       header: {
         title: 'Administração da Plataforma',
         generatingLinks: 'Gerando novos links...'
-      },
-      integration: {
-        title: 'Integrações',
-        description: 'Defina a URL externa para alimentar display e legenda. Ao salvar, os botões abaixo abrirão no modo integração.',
-        openPanel: 'Integração',
-        authUserLabel: 'Usuário',
-        authPasswordLabel: 'Senha',
-        authHint: 'Use credenciais de integração para salvar ou remover a URL.',
-        authSubmit: 'Acessar',
-        urlLabel: 'URL externa',
-        urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
-        save: 'Salvar integração',
-        clear: 'Remover',
-        goToDisplay: 'Display integração',
-        goToLegend: 'Legenda integração',
-        goToTimer: 'Cronômetro integração',
-        linksDisabled: 'Salve uma URL externa para habilitar os links de integração.',
-        activeBadge: 'Integração ativa',
-        saved: 'Integração atualizada.',
-        cleared: 'Integração removida.',
-        invalidUrl: 'URL inválida. Use um endereço completo com http:// ou https://.',
-        missingMeet: 'A URL deve conter o parâmetro `meet`.',
-        missingRoomId: 'Informe `roomId` na URL para carregar esta sala.',
-        missingRoomIdHint: 'Exemplo: /integration?roomId=ABCD&pin=1234',
-        openWithPinHint: 'Abra com `pin` para editar: /integration?roomId={roomId}&pin=1234'
       },
       timer: {
         title: 'Timer',
@@ -422,6 +412,11 @@ const MESSAGES: Record<AppLocale, Messages> = {
         loadingDescription: 'Preparando painel...',
         connectingTitle: 'Conectando',
         connectingDescription: 'Sincronizando dados da plataforma...'
+      },
+      footer: {
+        openSource: 'Open Source',
+        hostedBy: 'Desenvolvido e hospedado por',
+        hostedByName: 'assist.com.br'
       }
     },
     legend: {
@@ -485,6 +480,15 @@ const MESSAGES: Record<AppLocale, Messages> = {
         title: 'Console indisponível',
         description: 'Utilize um QR Code atualizado para acessar `{judge}` com sala e token válidos.'
       }
+    },
+    master: {
+      metaDescription: 'Painel master com métricas de uso, sessões e distribuição geográfica da plataforma Referee Lights.',
+      login: { title: 'Master Admin', userLabel: 'Usuário', passwordLabel: 'Senha', submit: 'Entrar', error: 'Credenciais inválidas.', notConfigured: 'Acesso master não configurado no servidor.' },
+      header: { title: 'Master Dashboard', logout: 'Sair' },
+      stats: { totalSessions: 'Sessões criadas', totalConnections: 'Conexões', activeRooms: 'Salas ativas', uniqueIps: 'IPs únicos' },
+      sessions: { title: 'Sessões recentes', roomId: 'Sala', created: 'Criada em', connections: 'Conexões', country: 'País', previous: 'Anterior', next: 'Próxima', empty: 'Nenhuma sessão registrada.' },
+      geo: { title: 'Distribuição geográfica', countries: 'Países', cities: 'Cidades', country: 'País', city: 'Cidade', count: 'Acessos', empty: 'Sem dados geográficos.' },
+      active: { title: 'Salas ativas', room: 'Sala', judges: 'Árbitros', created: 'Criada em', empty: 'Nenhuma sala ativa.' }
     }
   },
   'en-US': {
@@ -503,8 +507,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
         token_revoked: 'Links have been revoked. Generate new QR Codes.',
         invalid_token: 'Token expired or invalid.',
         invalid_credentials: 'Invalid username or password.',
-        external_invalid_url: 'Invalid external URL. Use a full address with http:// or https://.',
-        external_missing_meet: 'Provide the competition code using `meet` or `externalMeet`.',
         unknown_error: 'Unexpected error.',
         invalid_payload: 'Invalid data sent to the server.'
       },
@@ -519,12 +521,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'pt-BR': 'Português',
       'en-US': 'English',
       'es-ES': 'Español'
-    },
-    integration: {
-      missingTitle: 'Integration not configured',
-      invalidSourceTitle: 'Invalid external source',
-      missingHint: 'Open this link with `externalUrl` or `meet`.',
-      exampleLabel: 'Example'
     }
   },
     display: {
@@ -573,31 +569,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
       header: {
         title: 'Platform Admin',
         generatingLinks: 'Generating new links...'
-      },
-      integration: {
-        title: 'Integrations',
-        description: 'Set an external URL to feed display and legend. After saving, the buttons below will open in integration mode.',
-        openPanel: 'Integration',
-        authUserLabel: 'Username',
-        authPasswordLabel: 'Password',
-        authHint: 'Use integration credentials to save or remove the URL.',
-        authSubmit: 'Access',
-        urlLabel: 'External URL',
-        urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
-        save: 'Save integration',
-        clear: 'Remove',
-        goToDisplay: 'Integration display',
-        goToLegend: 'Integration legend',
-        goToTimer: 'Integration timer',
-        linksDisabled: 'Save an external URL to enable integration links.',
-        activeBadge: 'Integration active',
-        saved: 'Integration updated.',
-        cleared: 'Integration removed.',
-        invalidUrl: 'Invalid URL. Use a full address with http:// or https://.',
-        missingMeet: 'The URL must include the `meet` parameter.',
-        missingRoomId: 'Provide `roomId` in the URL to load this room.',
-        missingRoomIdHint: 'Example: /integration?roomId=ABCD&pin=1234',
-        openWithPinHint: 'Open with `pin` to edit: /integration?roomId={roomId}&pin=1234'
       },
       timer: {
         title: 'Timer',
@@ -671,6 +642,11 @@ const MESSAGES: Record<AppLocale, Messages> = {
         loadingDescription: 'Preparing panel...',
         connectingTitle: 'Connecting',
         connectingDescription: 'Syncing platform data...'
+      },
+      footer: {
+        openSource: 'Open Source',
+        hostedBy: 'Developed and hosted by',
+        hostedByName: 'assist.com.br'
       }
     },
     legend: {
@@ -734,6 +710,15 @@ const MESSAGES: Record<AppLocale, Messages> = {
         title: 'Console unavailable',
         description: 'Use an updated QR Code to access `{judge}` with a valid room and token.'
       }
+    },
+    master: {
+      metaDescription: 'Master panel with usage metrics, sessions, and geographic distribution for the Referee Lights platform.',
+      login: { title: 'Master Admin', userLabel: 'Username', passwordLabel: 'Password', submit: 'Sign in', error: 'Invalid credentials.', notConfigured: 'Master access not configured on the server.' },
+      header: { title: 'Master Dashboard', logout: 'Logout' },
+      stats: { totalSessions: 'Sessions created', totalConnections: 'Connections', activeRooms: 'Active rooms', uniqueIps: 'Unique IPs' },
+      sessions: { title: 'Recent sessions', roomId: 'Room', created: 'Created at', connections: 'Connections', country: 'Country', previous: 'Previous', next: 'Next', empty: 'No sessions recorded.' },
+      geo: { title: 'Geographic distribution', countries: 'Countries', cities: 'Cities', country: 'Country', city: 'City', count: 'Accesses', empty: 'No geographic data.' },
+      active: { title: 'Active rooms', room: 'Room', judges: 'Judges', created: 'Created at', empty: 'No active rooms.' }
     }
   },
   'es-ES': {
@@ -752,8 +737,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
         token_revoked: 'Los enlaces anteriores fueron revocados. Genera nuevos códigos QR.',
         invalid_token: 'Token expirado o inválido.',
         invalid_credentials: 'Usuario o contraseña inválidos.',
-        external_invalid_url: 'URL externa inválida. Usa una dirección completa con http:// o https://.',
-        external_missing_meet: 'Informa el código de la competición usando `meet` o `externalMeet`.',
         unknown_error: 'Error inesperado.',
         invalid_payload: 'Datos inválidos enviados al servidor.'
       },
@@ -768,12 +751,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'pt-BR': 'Portugués',
       'en-US': 'Inglés',
       'es-ES': 'Español'
-    },
-    integration: {
-      missingTitle: 'Integración no configurada',
-      invalidSourceTitle: 'Fuente externa inválida',
-      missingHint: 'Abre este enlace con `externalUrl` o `meet`.',
-      exampleLabel: 'Ejemplo'
     }
   },
     display: {
@@ -822,31 +799,6 @@ const MESSAGES: Record<AppLocale, Messages> = {
       header: {
         title: 'Administración de la plataforma',
         generatingLinks: 'Generando nuevos enlaces...'
-      },
-      integration: {
-        title: 'Integraciones',
-        description: 'Define una URL externa para alimentar display y leyenda. Al guardar, los botones de abajo abrirán en modo integración.',
-        openPanel: 'Integración',
-        authUserLabel: 'Usuario',
-        authPasswordLabel: 'Contraseña',
-        authHint: 'Usa credenciales de integración para guardar o eliminar la URL.',
-        authSubmit: 'Acceder',
-        urlLabel: 'URL externa',
-        urlPlaceholder: 'https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53',
-        save: 'Guardar integración',
-        clear: 'Quitar',
-        goToDisplay: 'Display integración',
-        goToLegend: 'Leyenda integración',
-        goToTimer: 'Cronómetro integración',
-        linksDisabled: 'Guarda una URL externa para habilitar los enlaces de integración.',
-        activeBadge: 'Integración activa',
-        saved: 'Integración actualizada.',
-        cleared: 'Integración eliminada.',
-        invalidUrl: 'URL inválida. Usa una dirección completa con http:// o https://.',
-        missingMeet: 'La URL debe incluir el parámetro `meet`.',
-        missingRoomId: 'Informa `roomId` en la URL para cargar esta sala.',
-        missingRoomIdHint: 'Ejemplo: /integration?roomId=ABCD&pin=1234',
-        openWithPinHint: 'Abre con `pin` para editar: /integration?roomId={roomId}&pin=1234'
       },
       timer: {
         title: 'Temporizador',
@@ -920,6 +872,11 @@ const MESSAGES: Record<AppLocale, Messages> = {
         loadingDescription: 'Preparando panel...',
         connectingTitle: 'Conectando',
         connectingDescription: 'Sincronizando datos de la plataforma...'
+      },
+      footer: {
+        openSource: 'Open Source',
+        hostedBy: 'Desarrollado y alojado por',
+        hostedByName: 'assist.com.br'
       }
     },
     legend: {
@@ -983,6 +940,15 @@ const MESSAGES: Record<AppLocale, Messages> = {
         title: 'Consola no disponible',
         description: 'Usa un código QR actualizado para acceder a `{judge}` con una sala y token válidos.'
       }
+    },
+    master: {
+      metaDescription: 'Panel maestro con métricas de uso, sesiones y distribución geográfica de la plataforma Referee Lights.',
+      login: { title: 'Master Admin', userLabel: 'Usuario', passwordLabel: 'Contraseña', submit: 'Acceder', error: 'Credenciales inválidas.', notConfigured: 'Acceso master no configurado en el servidor.' },
+      header: { title: 'Master Dashboard', logout: 'Salir' },
+      stats: { totalSessions: 'Sesiones creadas', totalConnections: 'Conexiones', activeRooms: 'Salas activas', uniqueIps: 'IPs únicos' },
+      sessions: { title: 'Sesiones recientes', roomId: 'Sala', created: 'Creada en', connections: 'Conexiones', country: 'País', previous: 'Anterior', next: 'Siguiente', empty: 'Ninguna sesión registrada.' },
+      geo: { title: 'Distribución geográfica', countries: 'Países', cities: 'Ciudades', country: 'País', city: 'Ciudad', count: 'Accesos', empty: 'Sin datos geográficos.' },
+      active: { title: 'Salas activas', room: 'Sala', judges: 'Árbitros', created: 'Creada en', empty: 'Ninguna sala activa.' }
     }
   }
 };

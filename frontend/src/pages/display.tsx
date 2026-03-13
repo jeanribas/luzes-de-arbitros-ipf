@@ -6,13 +6,12 @@ import { FullscreenButton } from '@/components/FullscreenButton';
 import TimerDisplay from '@/components/TimerDisplay';
 import IntervalCountdown from '@/components/IntervalCountdown';
 import IntervalFull from '@/components/IntervalFull';
-import { useEasyLifterBridge } from '@/hooks/useEasyLifterBridge';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWakeLock } from '@/hooks/useWakeLock';
-import { readQueryValue, resolveEasyLifterSource } from '@/lib/easyLifterSource';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
 import { Seo } from '@/components/Seo';
+import { FooterBadges } from '@/components/FooterBadges';
 
 const BASE_SCALE = 0.9;
 const DEFAULT_ZOOM = 1;
@@ -28,30 +27,12 @@ export default function DisplayPage() {
   const sectionLabelTrackingClass = isSpanishLocale ? 'tracking-[0.26em]' : 'tracking-[0.32em]';
   const roomId = typeof router.query.roomId === 'string' ? router.query.roomId : undefined;
   const adminPin = typeof router.query.pin === 'string' ? router.query.pin : undefined;
-  const externalUrl = readQueryValue(router.query.externalUrl);
-  const externalMeet = readQueryValue(router.query.externalMeet) ?? readQueryValue(router.query.meet);
-  const externalOrigin = readQueryValue(router.query.externalOrigin);
 
-  const externalSource = useMemo(
-    () => resolveEasyLifterSource(externalUrl, externalMeet, externalOrigin),
-    [externalMeet, externalOrigin, externalUrl]
-  );
-
-  const isExternalMode = externalSource.enabled;
-
-  const { state: roomState, error: roomError } = useRoomSocket('display', isExternalMode ? {} : {
+  const { state, error } = useRoomSocket('display', {
     roomId,
     adminPin
   });
 
-  const { state: externalState, error: externalError } = useEasyLifterBridge({
-    enabled: isExternalMode && !externalSource.error,
-    meetCode: externalSource.meetCode,
-    origin: externalSource.origin
-  });
-
-  const state = isExternalMode ? externalState : roomState;
-  const error = isExternalMode ? externalSource.error ?? externalError : roomError;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
@@ -128,23 +109,11 @@ export default function DisplayPage() {
 
   const resetZoom = useCallback(() => setZoom(DEFAULT_ZOOM), []);
 
-  if (isExternalMode && externalSource.error) {
-    return (
-      <MissingExternalSourceConfig
-        message={externalSource.error}
-        integration={commonMessages.integration}
-        errors={commonMessages.errors}
-      />
-    );
-  }
-
-  if (!isExternalMode && (!roomId || !adminPin)) {
+  if (!roomId || !adminPin) {
     return <MissingDisplayCredentials messages={displayMessages} />;
   }
 
-  const adminLink = roomId && adminPin
-    ? `/admin?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`
-    : '/admin';
+  const adminLink = `/admin?roomId=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(adminPin)}`;
 
   return (
     <>
@@ -177,14 +146,12 @@ export default function DisplayPage() {
                     enterLabel={displayMessages.menu.fullscreenEnter}
                     exitLabel={displayMessages.menu.fullscreenExit}
                   />
-                  {!isExternalMode && (
-                    <Link
-                      href={adminLink}
-                      className={`inline-flex w-full items-center justify-center rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase ${buttonTrackingClass} text-white transition hover:bg-white/25`}
-                    >
-                      {displayMessages.menu.goToAdmin}
-                    </Link>
-                  )}
+                  <Link
+                    href={adminLink}
+                    className={`inline-flex w-full items-center justify-center rounded-xl bg-white/15 px-4 py-3 text-[10px] font-semibold uppercase ${buttonTrackingClass} text-white transition hover:bg-white/25`}
+                  >
+                    {displayMessages.menu.goToAdmin}
+                  </Link>
                 </section>
 
                 <section className="flex flex-col gap-3 border-t border-white/10 pt-4">
@@ -300,6 +267,9 @@ export default function DisplayPage() {
             </div>
           </div>
         )}
+        <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+          <FooterBadges />
+        </div>
       </main>
       {error && <StatusBanner message={error} errors={commonMessages.errors} />}
     </>
@@ -326,27 +296,6 @@ function MissingDisplayCredentials({ messages }: { messages: Messages['display']
       >
         {messages.missing.goToAdmin}
       </Link>
-    </main>
-  );
-}
-
-function MissingExternalSourceConfig({
-  message,
-  integration,
-  errors
-}: {
-  message: string;
-  integration: Messages['common']['integration'];
-  errors: Record<string, string>;
-}) {
-  const text = errors[message] ?? message;
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 py-12 text-center text-white">
-      <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">{integration.invalidSourceTitle}</h1>
-      <p className="max-w-xl text-sm text-white/70">{text}</p>
-      <p className="max-w-xl text-xs text-white/50">
-        {integration.exampleLabel}: <code>/display?externalUrl=https://easyliftersoftware.com/referee/lights?meet=3NJH7Y53</code>
-      </p>
     </main>
   );
 }
