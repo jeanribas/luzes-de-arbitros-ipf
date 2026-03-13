@@ -139,11 +139,11 @@ function GeoMap({ markers, onlineVisitors }: {
   }, [onlineVisitors]);
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-slate-950/50" style={{ aspectRatio: '2.2/1' }}>
+    <div className="relative overflow-hidden rounded-xl bg-slate-950/50 flex-1 min-h-[300px]">
       <ComposableMap
         projection="geoMercator"
         projectionConfig={{ scale: 140, center: [0, 30] }}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
       >
         <ZoomableGroup>
           <Geographies geography={GEO_URL}>
@@ -480,55 +480,53 @@ export default function MasterPage() {
             </section>
           )}
 
-          {/* ─── Timeline chart ─── */}
-          <SectionCard title={`Sessões — ${PERIOD_LABELS[period]}`}>
-            {timelineData.length === 0 ? (
-              <p className="py-12 text-center text-sm text-slate-600">Sem dados ainda.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={timelineData}>
-                  <defs>
-                    <linearGradient id="gradSessions" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
-                  <Tooltip {...tooltipStyle} />
-                  <Area type="monotone" dataKey="sessions" name="Sessões" stroke="#6366f1" fill="url(#gradSessions)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </SectionCard>
-
-          {/* ─── Pages + Hosts ─── */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <SectionCard title="Páginas">
-              <ProgressList
-                items={pages?.pages ?? []}
-                labelKey="page"
-                valueKey="count"
-                labelMap={PAGE_LABELS}
-              />
-            </SectionCard>
-            <SectionCard title="Subdomínios">
-              <ProgressList
-                items={hosts?.hosts ?? []}
-                labelKey="host"
-                valueKey="count"
+          {/* ─── Left stack (Sessions, Pages, Hosts) + Map (right) ─── */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-6">
+              <SectionCard title={`Sessões — ${PERIOD_LABELS[period]}`}>
+                {timelineData.length === 0 ? (
+                  <p className="py-12 text-center text-sm text-slate-600">Sem dados ainda.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <AreaChart data={timelineData}>
+                      <defs>
+                        <linearGradient id="gradSessions" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
+                      <Tooltip {...tooltipStyle} />
+                      <Area type="monotone" dataKey="sessions" name="Sessões" stroke="#6366f1" fill="url(#gradSessions)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </SectionCard>
+              <SectionCard title="Páginas">
+                <ProgressList
+                  items={pages?.pages ?? []}
+                  labelKey="page"
+                  valueKey="count"
+                  labelMap={PAGE_LABELS}
+                />
+              </SectionCard>
+              <SectionCard title="Subdomínios">
+                <ProgressList
+                  items={hosts?.hosts ?? []}
+                  labelKey="host"
+                  valueKey="count"
+                />
+              </SectionCard>
+            </div>
+            <SectionCard title="Mapa de conexões" className="flex flex-col">
+              <GeoMap
+                markers={geoMarkers?.markers ?? []}
+                onlineVisitors={online?.visitors ?? []}
               />
             </SectionCard>
           </div>
-
-          {/* ─── Geo Map + Lists ─── */}
-          <SectionCard title="Mapa de conexões">
-            <GeoMap
-              markers={geoMarkers?.markers ?? []}
-              onlineVisitors={online?.visitors ?? []}
-            />
-          </SectionCard>
 
           <div className="grid gap-6 md:grid-cols-2">
             <SectionCard title="Países">
