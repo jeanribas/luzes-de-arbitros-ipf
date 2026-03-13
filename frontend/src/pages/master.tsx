@@ -1,59 +1,70 @@
 import { useRouter } from 'next/router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import {
+  ComposableMap, Geographies, Geography, Marker, ZoomableGroup
+} from 'react-simple-maps';
 
 import { Seo } from '@/components/Seo';
 import { getMessages } from '@/lib/i18n/messages';
 import {
   masterAuth,
   getMasterStats,
-  getMasterSessions,
   getMasterGeo,
   getMasterActive,
   getMasterTimeline,
-  getMasterHourly,
-  getMasterRoles,
   getMasterDuration,
-  getMasterActivity,
-  getMasterClicks,
+  getMasterOnline,
+  getMasterPages,
+  getMasterHosts,
   getMasterInstances,
+  getMasterGeoMarkers,
   type MasterStats,
-  type MasterSession,
   type MasterGeoResponse,
   type MasterActiveResponse,
   type MasterTimelineResponse,
-  type MasterHourlyResponse,
-  type MasterRolesResponse,
   type MasterDurationResponse,
-  type MasterActivityResponse,
-  type MasterClicksResponse,
-  type MasterInstancesResponse
+  type MasterOnlineResponse,
+  type MasterPagesResponse,
+  type MasterHostsResponse,
+  type MasterInstancesResponse,
+  type MasterGeoMarkersResponse
 } from '@/lib/api';
 
-const PAGE_SIZE = 20;
-const REFRESH_INTERVAL = 30_000;
+const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
-const CHART_COLORS = ['#6366f1', '#22d3ee', '#f59e0b', '#10b981', '#f43f5e', '#8b5cf6'];
-const ROLE_COLORS: Record<string, string> = {
-  admin: '#6366f1',
-  display: '#22d3ee',
-  left: '#f43f5e',
-  center: '#f59e0b',
-  right: '#10b981',
-  viewer: '#8b5cf6'
+type Period = 'today' | '7d' | '30d' | 'all';
+
+const PERIOD_LABELS: Record<Period, string> = {
+  today: 'Hoje',
+  '7d': '7 dias',
+  '30d': '30 dias',
+  all: 'Tudo'
 };
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Admin',
-  display: 'Display',
-  left: 'Esquerdo',
-  center: 'Central',
-  right: 'Direito',
-  viewer: 'Viewer'
+
+const REFRESH_INTERVAL = 30_000;
+const ONLINE_REFRESH_INTERVAL = 10_000;
+
+const PAGE_LABELS: Record<string, string> = {
+  '/admin': 'Painel Admin',
+  '/display': 'Display',
+  '/ref/left': 'Árbitro Esquerdo',
+  '/ref/center': 'Árbitro Central',
+  '/ref/right': 'Árbitro Direito',
+  '/': 'Visitante'
 };
+
+const tooltipStyle = {
+  contentStyle: { background: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', fontSize: '12px' },
+  labelStyle: { color: '#94a3b8' },
+  itemStyle: { color: '#e2e8f0' }
+};
+
+/* ─── Shared components ─── */
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
   return (
@@ -66,7 +77,7 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string 
   );
 }
 
-function ChartCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
+function SectionCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <section className={`rounded-2xl border border-white/[0.06] bg-gradient-to-br from-slate-900/90 to-slate-800/40 p-5 ${className}`}>
       <h2 className="mb-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">{title}</h2>
@@ -75,11 +86,122 @@ function ChartCard({ title, children, className = '' }: { title: string; childre
   );
 }
 
-const tooltipStyle = {
-  contentStyle: { background: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', fontSize: '12px' },
-  labelStyle: { color: '#94a3b8' },
-  itemStyle: { color: '#e2e8f0' }
-};
+function ProgressList({ items, labelKey, valueKey, labelMap }: {
+  items: Array<Record<string, any>>;
+  labelKey: string;
+  valueKey: string;
+  labelMap?: Record<string, string>;
+}) {
+  if (items.length === 0) return <p className="text-sm text-slate-600">Sem dados.</p>;
+  const max = items[0][valueKey] as number;
+  return (
+    <div className="space-y-2.5">
+      {items.slice(0, 10).map((item, i) => {
+        const raw = String(item[labelKey]);
+        const label = labelMap?.[raw] ?? raw;
+        const count = item[valueKey] as number;
+        const pct = max > 0 ? (count / max) * 100 : 0;
+        return (
+          <div key={raw + i}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="truncate text-xs text-slate-300">{label || '—'}</span>
+              <span className="ml-3 text-xs font-bold tabular-nums text-white">{count}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.04]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── Interactive map ─── */
+
+function GeoMap({ markers, onlineVisitors }: {
+  markers: MasterGeoMarkersResponse['markers'];
+  onlineVisitors: MasterOnlineResponse['visitors'];
+}) {
+  const [hoveredMarker, setHoveredMarker] = useState<{ city: string; country: string; count: number } | null>(null);
+  const maxCount = markers.length > 0 ? markers[0].count : 1;
+
+  // Merge online visitor locations as live dots
+  const liveLocations = useMemo(() => {
+    const map = new Map<string, { lat: number; lng: number; count: number }>();
+    for (const v of onlineVisitors) {
+      // we don't have lat/lng for online visitors directly, skip if no geo marker match
+    }
+    return map;
+  }, [onlineVisitors]);
+
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-slate-950/50" style={{ aspectRatio: '2.2/1' }}>
+      <ComposableMap
+        projection="geoMercator"
+        projectionConfig={{ scale: 140, center: [0, 30] }}
+        style={{ width: '100%', height: '100%' }}
+      >
+        <ZoomableGroup>
+          <Geographies geography={GEO_URL}>
+            {({ geographies }) =>
+              geographies.map((geo) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  fill="#1e293b"
+                  stroke="#334155"
+                  strokeWidth={0.4}
+                  style={{
+                    default: { outline: 'none' },
+                    hover: { fill: '#334155', outline: 'none' },
+                    pressed: { outline: 'none' }
+                  }}
+                />
+              ))
+            }
+          </Geographies>
+          {markers.map((m) => {
+            const size = 4 + (m.count / maxCount) * 16;
+            return (
+              <Marker
+                key={`${m.city}-${m.country}`}
+                coordinates={[m.lng, m.lat]}
+                onMouseEnter={() => setHoveredMarker(m)}
+                onMouseLeave={() => setHoveredMarker(null)}
+              >
+                <circle
+                  r={size}
+                  fill="#6366f1"
+                  fillOpacity={0.5}
+                  stroke="#818cf8"
+                  strokeWidth={1}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle
+                  r={size * 0.4}
+                  fill="#a5b4fc"
+                  fillOpacity={0.9}
+                />
+              </Marker>
+            );
+          })}
+        </ZoomableGroup>
+      </ComposableMap>
+      {hoveredMarker && (
+        <div className="pointer-events-none absolute left-4 bottom-4 rounded-lg border border-white/[0.08] bg-slate-900/95 px-3 py-2 text-xs backdrop-blur">
+          <span className="font-medium text-white">{hoveredMarker.city}, {hoveredMarker.country}</span>
+          <span className="ml-2 text-indigo-300">{hoveredMarker.count} conexões</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main page ─── */
 
 export default function MasterPage() {
   const router = useRouter();
@@ -92,19 +214,20 @@ export default function MasterPage() {
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
 
+  const [period, setPeriod] = useState<Period>('30d');
   const [stats, setStats] = useState<MasterStats | null>(null);
-  const [sessions, setSessions] = useState<MasterSession[]>([]);
-  const [sessionsOffset, setSessionsOffset] = useState(0);
-  const [geo, setGeo] = useState<MasterGeoResponse | null>(null);
-  const [active, setActive] = useState<MasterActiveResponse | null>(null);
   const [timeline, setTimeline] = useState<MasterTimelineResponse | null>(null);
-  const [hourly, setHourly] = useState<MasterHourlyResponse | null>(null);
-  const [roles, setRoles] = useState<MasterRolesResponse | null>(null);
+  const [geo, setGeo] = useState<MasterGeoResponse | null>(null);
+  const [geoMarkers, setGeoMarkers] = useState<MasterGeoMarkersResponse | null>(null);
   const [duration, setDuration] = useState<MasterDurationResponse | null>(null);
-  const [activity, setActivity] = useState<MasterActivityResponse | null>(null);
-  const [clicks, setClicks] = useState<MasterClicksResponse | null>(null);
+  const [active, setActive] = useState<MasterActiveResponse | null>(null);
+  const [online, setOnline] = useState<MasterOnlineResponse | null>(null);
+  const [pages, setPages] = useState<MasterPagesResponse | null>(null);
+  const [hosts, setHosts] = useState<MasterHostsResponse | null>(null);
   const [instances, setInstances] = useState<MasterInstancesResponse | null>(null);
-  const [tab, setTab] = useState<'overview' | 'sessions' | 'geo' | 'family'>('overview');
+
+  const periodRef = useRef(period);
+  periodRef.current = period;
 
   useEffect(() => {
     if (typeof window !== 'undefined' && sessionStorage.getItem('master_token')) {
@@ -139,74 +262,75 @@ export default function MasterPage() {
     sessionStorage.removeItem('master_token');
     setAuthenticated(false);
     setStats(null);
-    setSessions([]);
-    setGeo(null);
-    setActive(null);
     setTimeline(null);
-    setHourly(null);
-    setRoles(null);
+    setGeo(null);
+    setGeoMarkers(null);
     setDuration(null);
-    setActivity(null);
-    setClicks(null);
+    setActive(null);
+    setOnline(null);
+    setPages(null);
+    setHosts(null);
     setInstances(null);
   }, []);
 
   const fetchData = useCallback(async () => {
     try {
-      const [s, sess, g, a, tl, hr, rl, dur, act, cl, inst] = await Promise.all([
-        getMasterStats(),
-        getMasterSessions(PAGE_SIZE, sessionsOffset),
-        getMasterGeo(),
+      const p = periodRef.current;
+      const [s, tl, g, gm, dur, act, pg, h, inst] = await Promise.all([
+        getMasterStats(p),
+        getMasterTimeline(p),
+        getMasterGeo(p),
+        getMasterGeoMarkers(p),
+        getMasterDuration(p),
         getMasterActive(),
-        getMasterTimeline(),
-        getMasterHourly(),
-        getMasterRoles(),
-        getMasterDuration(),
-        getMasterActivity(),
-        getMasterClicks(),
+        getMasterPages(p),
+        getMasterHosts(p),
         getMasterInstances()
       ]);
       setStats(s);
-      setSessions(sess.sessions);
-      setGeo(g);
-      setActive(a);
       setTimeline(tl);
-      setHourly(hr);
-      setRoles(rl);
+      setGeo(g);
+      setGeoMarkers(gm);
       setDuration(dur);
-      setActivity(act);
-      setClicks(cl);
+      setActive(act);
+      setPages(pg);
+      setHosts(h);
       setInstances(inst);
     } catch {
       handleLogout();
     }
-  }, [sessionsOffset, handleLogout]);
+  }, [handleLogout]);
+
+  const fetchOnline = useCallback(async () => {
+    try {
+      setOnline(await getMasterOnline());
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     if (!authenticated) return;
     void fetchData();
-    const id = setInterval(() => void fetchData(), REFRESH_INTERVAL);
-    return () => clearInterval(id);
-  }, [authenticated, fetchData]);
+    void fetchOnline();
+    const dataId = setInterval(() => void fetchData(), REFRESH_INTERVAL);
+    const onlineId = setInterval(() => void fetchOnline(), ONLINE_REFRESH_INTERVAL);
+    return () => { clearInterval(dataId); clearInterval(onlineId); };
+  }, [authenticated, fetchData, fetchOnline]);
 
-  const formatDate = useCallback(
-    (iso: string) => {
-      try {
-        return new Date(iso).toLocaleString(locale ?? 'pt-BR');
-      } catch {
-        return iso;
-      }
-    },
-    [locale]
-  );
+  useEffect(() => {
+    if (authenticated) void fetchData();
+  }, [period, authenticated, fetchData]);
 
-  const formatRelative = useCallback((timestamp: number) => {
-    const diffMs = Date.now() - timestamp;
+  const formatRelative = useCallback((isoOrTimestamp: string | number) => {
+    const ts = typeof isoOrTimestamp === 'number' ? isoOrTimestamp : new Date(isoOrTimestamp).getTime();
+    const diffMs = Date.now() - ts;
     const diffMin = Math.floor(diffMs / 60_000);
     if (diffMin < 1) return '< 1 min';
     if (diffMin < 60) return `${diffMin} min`;
     const diffH = Math.floor(diffMin / 60);
-    return `${diffH}h ${diffMin % 60}min`;
+    if (diffH < 24) return `${diffH}h ${diffMin % 60}m`;
+    return `${Math.floor(diffH / 24)}d`;
   }, []);
 
   const pageHead = (
@@ -281,23 +405,6 @@ export default function MasterPage() {
     label: new Date(d.date).toLocaleDateString(locale ?? 'pt-BR', { day: '2-digit', month: 'short' })
   })) ?? [];
 
-  const hourlyData = hourly?.hourly ?? [];
-
-  const rolesData = (roles?.roles ?? []).map((r) => ({
-    ...r,
-    name: ROLE_LABELS[r.role] ?? r.role,
-    fill: ROLE_COLORS[r.role] ?? '#6366f1'
-  }));
-
-  const activityData = (activity?.activity ?? []).map((a) => ({
-    ...a,
-    label: new Date(a.minute).toLocaleTimeString(locale ?? 'pt-BR', { hour: '2-digit', minute: '2-digit' })
-  }));
-
-  const geoBarData = (geo?.countries ?? []).slice(0, 10);
-
-  const peakHour = hourlyData.reduce((max, h) => (h.count > max.count ? h : max), { hour: 0, count: 0 });
-
   // ----- DASHBOARD -----
   return (
     <>
@@ -305,7 +412,7 @@ export default function MasterPage() {
       <main className="min-h-screen bg-[#0a0e1a] text-slate-100">
         {/* Header */}
         <header className="sticky top-0 z-10 border-b border-white/[0.04] bg-[#0a0e1a]/80 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-4">
+          <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/20">
                 <svg className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -314,23 +421,33 @@ export default function MasterPage() {
               </div>
               <h1 className="text-sm font-semibold uppercase tracking-[0.35em]">{m.header.title}</h1>
             </div>
+
             <div className="flex items-center gap-4">
-              {/* Tabs */}
-              <nav className="hidden items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.02] p-1 sm:flex">
-                {(['overview', 'sessions', 'geo', 'family'] as const).map((t) => (
+              {/* Period selector */}
+              <nav className="flex items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.02] p-1">
+                {(['today', '7d', '30d', 'all'] as Period[]).map((p) => (
                   <button
-                    key={t}
+                    key={p}
                     type="button"
-                    onClick={() => setTab(t)}
-                    className={`rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
-                      tab === t ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-500 hover:text-slate-300'
+                    onClick={() => setPeriod(p)}
+                    className={`rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition ${
+                      period === p ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-500 hover:text-slate-300'
                     }`}
                   >
-                    {t === 'overview' ? 'Visão Geral' : t === 'sessions' ? 'Sessões' : t === 'geo' ? 'Geográfico' : 'Família'}
+                    {PERIOD_LABELS[p]}
                   </button>
                 ))}
               </nav>
-              <div className="flex h-2 w-2 animate-pulse rounded-full bg-emerald-400" title="Auto-refresh ativo" />
+
+              {/* Online count badge */}
+              {online && (
+                <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                  <span className="text-[11px] font-bold tabular-nums text-emerald-300">{online.count}</span>
+                  <span className="text-[10px] text-emerald-400/70">agora</span>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleLogout}
@@ -342,464 +459,185 @@ export default function MasterPage() {
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1400px] space-y-6 px-6 py-6">
-          {/* Mobile tabs */}
-          <nav className="flex items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.02] p-1 sm:hidden">
-            {(['overview', 'sessions', 'geo', 'family'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={`flex-1 rounded-md px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition ${
-                  tab === t ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {t === 'overview' ? 'Geral' : t === 'sessions' ? 'Sessões' : t === 'geo' ? 'Geo' : 'Família'}
-              </button>
-            ))}
-          </nav>
-
-          {/* ===================== OVERVIEW TAB ===================== */}
-          {tab === 'overview' && (
-            <>
-              {/* Stat cards */}
-              {stats && (
-                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-                  <StatCard label={m.stats.totalSessions} value={stats.totalSessions} accent="bg-indigo-500" />
-                  <StatCard label={m.stats.totalConnections} value={stats.totalConnections} accent="bg-cyan-500" />
-                  <StatCard label={m.stats.activeRooms} value={stats.activeRooms} accent="bg-emerald-500" />
-                  <StatCard label={m.stats.uniqueIps} value={stats.uniqueIps} accent="bg-amber-500" />
-                  {duration && (
-                    <>
-                      <StatCard label="Tempo médio" value={`${duration.avgMinutes} min`} sub="por conexão" accent="bg-rose-500" />
-                      <StatCard label="Uso total" value={`${duration.totalHours}h`} sub="acumulado" accent="bg-violet-500" />
-                    </>
-                  )}
-                </section>
-              )}
-
-              {/* Main charts row */}
-              <div className="grid gap-6 lg:grid-cols-3">
-                {/* Timeline - large */}
-                <ChartCard title="Sessões & Conexões — Últimos 30 dias" className="lg:col-span-2">
-                  {timelineData.length === 0 ? (
-                    <p className="py-12 text-center text-sm text-slate-600">Sem dados ainda.</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={280}>
-                      <AreaChart data={timelineData}>
-                        <defs>
-                          <linearGradient id="gradSessions" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                            <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="gradConnections" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.3} />
-                            <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
-                        <Tooltip {...tooltipStyle} />
-                        <Area type="monotone" dataKey="sessions" name="Sessões" stroke="#6366f1" fill="url(#gradSessions)" strokeWidth={2} />
-                        <Area type="monotone" dataKey="connections" name="Conexões" stroke="#22d3ee" fill="url(#gradConnections)" strokeWidth={2} />
-                        <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </ChartCard>
-
-                {/* Roles pie */}
-                <ChartCard title="Conexões por Papel">
-                  {rolesData.length === 0 ? (
-                    <p className="py-12 text-center text-sm text-slate-600">Sem dados.</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={280}>
-                      <PieChart>
-                        <Pie
-                          data={rolesData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={90}
-                          paddingAngle={3}
-                          dataKey="count"
-                          nameKey="name"
-                          strokeWidth={0}
-                        >
-                          {rolesData.map((entry, index) => (
-                            <Cell key={index} fill={entry.fill} />
-                          ))}
-                        </Pie>
-                        <Tooltip {...tooltipStyle} />
-                        <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </ChartCard>
-              </div>
-
-              {/* Second row */}
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Hourly heatmap as bar chart */}
-                <ChartCard title="Horários de Pico (últimos 30 dias)">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={hourlyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                      <XAxis
-                        dataKey="hour"
-                        tick={{ fontSize: 10, fill: '#64748b' }}
-                        tickFormatter={(h) => `${String(h).padStart(2, '0')}h`}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
-                      <Tooltip
-                        {...tooltipStyle}
-                        labelFormatter={(h) => `${String(h).padStart(2, '0')}:00 – ${String(h).padStart(2, '0')}:59`}
-                      />
-                      <Bar dataKey="count" name="Conexões" radius={[4, 4, 0, 0]}>
-                        {hourlyData.map((entry, index) => (
-                          <Cell
-                            key={index}
-                            fill={entry.hour === peakHour.hour && peakHour.count > 0 ? '#f59e0b' : '#6366f1'}
-                            opacity={entry.count === 0 ? 0.15 : 0.4 + (entry.count / Math.max(peakHour.count, 1)) * 0.6}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                  {peakHour.count > 0 && (
-                    <p className="mt-2 text-xs text-slate-500">
-                      Pico: <span className="text-amber-400 font-medium">{String(peakHour.hour).padStart(2, '0')}h</span> com {peakHour.count} conexões
-                    </p>
-                  )}
-                </ChartCard>
-
-                {/* Recent activity (last 24h) */}
-                <ChartCard title="Atividade — Últimas 24h">
-                  {activityData.length === 0 ? (
-                    <p className="py-12 text-center text-sm text-slate-600">Sem atividade recente.</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <AreaChart data={activityData}>
-                        <defs>
-                          <linearGradient id="gradActivity" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
-                            <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
-                        <Tooltip {...tooltipStyle} />
-                        <Area type="monotone" dataKey="connections" name="Conexões" stroke="#10b981" fill="url(#gradActivity)" strokeWidth={2} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </ChartCard>
-              </div>
-
-              {/* Active rooms */}
-              <ChartCard title={m.active.title}>
-                {!active || active.rooms.length === 0 ? (
-                  <p className="text-sm text-slate-600">{m.active.empty}</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-white/[0.04] text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                          <th className="px-3 py-2">{m.active.room}</th>
-                          <th className="px-3 py-2">{m.active.judges}</th>
-                          <th className="px-3 py-2">{m.active.created}</th>
-                          <th className="px-3 py-2">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {active.rooms.map((r) => (
-                          <tr key={r.id} className="border-b border-white/[0.02]">
-                            <td className="px-3 py-2.5 font-mono text-xs text-indigo-300">{r.id}</td>
-                            <td className="px-3 py-2.5">
-                              <span className="inline-flex items-center gap-1.5">
-                                <span className={`h-2 w-2 rounded-full ${r.connectedJudges > 0 ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                                <span className="tabular-nums">{r.connectedJudges}/3</span>
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5 text-xs text-slate-400">{formatRelative(r.createdAt)}</td>
-                            <td className="px-3 py-2.5">
-                              <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                                r.connectedJudges === 3 ? 'bg-emerald-500/15 text-emerald-400' :
-                                r.connectedJudges > 0 ? 'bg-amber-500/15 text-amber-400' : 'bg-slate-500/15 text-slate-500'
-                              }`}>
-                                {r.connectedJudges === 3 ? 'Completa' : r.connectedJudges > 0 ? 'Parcial' : 'Vazia'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </ChartCard>
-
-              {/* Link Clicks */}
-              <ChartCard title="Cliques em Links Externos">
-                {!clicks || clicks.clicks.length === 0 ? (
-                  <p className="text-sm text-slate-600">Nenhum clique registrado.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {clicks.clicks.map((c) => {
-                      const maxCount = clicks.clicks[0].count;
-                      const pct = maxCount > 0 ? (c.count / maxCount) * 100 : 0;
-                      const label = c.url.replace(/^https?:\/\//, '');
-                      return (
-                        <div key={c.url} className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="truncate text-xs text-indigo-300">{label}</span>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-500">
-                                Último: {new Date(c.last_click).toLocaleString('pt-BR')}
-                              </span>
-                              <span className="min-w-[3rem] text-right text-sm font-bold tabular-nums text-white">{c.count}</span>
-                            </div>
-                          </div>
-                          <div className="h-2 overflow-hidden rounded-full bg-white/[0.04]">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </ChartCard>
-            </>
+        <div className="space-y-6 px-6 py-6">
+          {/* ─── Stat cards ─── */}
+          {stats && (
+            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                label="Visitantes agora"
+                value={online?.count ?? 0}
+                sub="conectados via WebSocket"
+                accent="bg-emerald-500"
+              />
+              <StatCard label="Sessões" value={stats.totalSessions} accent="bg-indigo-500" />
+              <StatCard label="Conexões" value={stats.totalConnections} accent="bg-cyan-500" />
+              <StatCard
+                label="Tempo médio"
+                value={duration ? `${duration.avgMinutes} min` : '—'}
+                sub="por conexão"
+                accent="bg-amber-500"
+              />
+            </section>
           )}
 
-          {/* ===================== SESSIONS TAB ===================== */}
-          {tab === 'sessions' && (
-            <ChartCard title={m.sessions.title}>
-              {sessions.length === 0 ? (
-                <p className="text-sm text-slate-600">{m.sessions.empty}</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-white/[0.04] text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        <th className="px-3 py-2">#</th>
-                        <th className="px-3 py-2">{m.sessions.roomId}</th>
-                        <th className="px-3 py-2">{m.sessions.created}</th>
-                        <th className="px-3 py-2">{m.sessions.connections}</th>
-                        <th className="px-3 py-2">{m.sessions.country}</th>
+          {/* ─── Timeline chart ─── */}
+          <SectionCard title={`Sessões — ${PERIOD_LABELS[period]}`}>
+            {timelineData.length === 0 ? (
+              <p className="py-12 text-center text-sm text-slate-600">Sem dados ainda.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={timelineData}>
+                  <defs>
+                    <linearGradient id="gradSessions" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
+                  <Tooltip {...tooltipStyle} />
+                  <Area type="monotone" dataKey="sessions" name="Sessões" stroke="#6366f1" fill="url(#gradSessions)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </SectionCard>
+
+          {/* ─── Pages + Hosts ─── */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <SectionCard title="Páginas">
+              <ProgressList
+                items={pages?.pages ?? []}
+                labelKey="page"
+                valueKey="count"
+                labelMap={PAGE_LABELS}
+              />
+            </SectionCard>
+            <SectionCard title="Subdomínios">
+              <ProgressList
+                items={hosts?.hosts ?? []}
+                labelKey="host"
+                valueKey="count"
+              />
+            </SectionCard>
+          </div>
+
+          {/* ─── Geo Map + Lists ─── */}
+          <SectionCard title="Mapa de conexões">
+            <GeoMap
+              markers={geoMarkers?.markers ?? []}
+              onlineVisitors={online?.visitors ?? []}
+            />
+          </SectionCard>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <SectionCard title="Países">
+              <ProgressList
+                items={geo?.countries ?? []}
+                labelKey="country"
+                valueKey="count"
+              />
+            </SectionCard>
+            <SectionCard title="Cidades">
+              <ProgressList
+                items={(geo?.cities ?? []).map((c) => ({ ...c, label: `${c.city}, ${c.country}` }))}
+                labelKey="label"
+                valueKey="count"
+              />
+            </SectionCard>
+          </div>
+
+          {/* ─── Active rooms ─── */}
+          <SectionCard title="Salas ativas">
+            {!active || active.rooms.length === 0 ? (
+              <p className="text-sm text-slate-600">Nenhuma sala ativa.</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {active.rooms.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between rounded-xl border border-white/[0.04] bg-white/[0.02] px-4 py-3">
+                    <div>
+                      <span className="font-mono text-sm text-indigo-300">{r.id}</span>
+                      <p className="text-[10px] text-slate-500">{formatRelative(r.createdAt)}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`h-2 w-2 rounded-full ${r.connectedJudges === 3 ? 'bg-emerald-400' : r.connectedJudges > 0 ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                      <span className="text-xs tabular-nums text-slate-400">{r.connectedJudges}/3</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          {/* ─── Online visitors ─── */}
+          <SectionCard title="Ao vivo">
+            {!online || online.visitors.length === 0 ? (
+              <p className="text-sm text-slate-600">Nenhum visitante agora.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-white/[0.04] text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <th className="px-3 py-2">Página</th>
+                      <th className="px-3 py-2">Sala</th>
+                      <th className="px-3 py-2">Subdomínio</th>
+                      <th className="px-3 py-2">País</th>
+                      <th className="px-3 py-2">Tempo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {online.visitors.map((v, i) => (
+                      <tr key={i} className="border-b border-white/[0.02] transition hover:bg-white/[0.02]">
+                        <td className="px-3 py-2.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-xs text-slate-300">{PAGE_LABELS[v.page] ?? v.page}</span>
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-indigo-300">{v.roomId}</td>
+                        <td className="px-3 py-2.5 text-xs text-slate-400">{v.host || '—'}</td>
+                        <td className="px-3 py-2.5 text-xs text-slate-400">{v.country ? `${v.country}${v.city ? `, ${v.city}` : ''}` : '—'}</td>
+                        <td className="px-3 py-2.5 text-xs tabular-nums text-slate-500">{formatRelative(v.connectedAt)}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {sessions.map((s, i) => (
-                        <tr key={s.id} className="border-b border-white/[0.02] transition hover:bg-white/[0.02]">
-                          <td className="px-3 py-2.5 text-xs text-slate-600">{sessionsOffset + i + 1}</td>
-                          <td className="px-3 py-2.5 font-mono text-xs text-indigo-300">{s.room_id}</td>
-                          <td className="px-3 py-2.5 text-xs text-slate-400">{formatDate(s.created_at)}</td>
-                          <td className="px-3 py-2.5 tabular-nums">
-                            <span className="inline-flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                              {s.connection_count}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-xs text-slate-400">{s.top_country || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <div className="mt-4 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSessionsOffset((p) => Math.max(0, p - PAGE_SIZE))}
-                  disabled={sessionsOffset === 0}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-[10px] uppercase tracking-[0.15em] text-slate-400 transition hover:bg-white/[0.06] disabled:opacity-30"
-                >
-                  {m.sessions.previous}
-                </button>
-                <span className="text-[10px] text-slate-600">
-                  {sessionsOffset + 1}–{sessionsOffset + sessions.length}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSessionsOffset((p) => p + PAGE_SIZE)}
-                  disabled={sessions.length < PAGE_SIZE}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-[10px] uppercase tracking-[0.15em] text-slate-400 transition hover:bg-white/[0.06] disabled:opacity-30"
-                >
-                  {m.sessions.next}
-                </button>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </ChartCard>
-          )}
+            )}
+          </SectionCard>
 
-          {/* ===================== GEO TAB ===================== */}
-          {tab === 'geo' && (
-            <>
-              {/* Geo bar chart */}
-              <ChartCard title="Top Países por Conexões">
-                {geoBarData.length === 0 ? (
-                  <p className="py-12 text-center text-sm text-slate-600">{m.geo.empty}</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={Math.max(200, geoBarData.length * 40)}>
-                    <BarChart data={geoBarData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="country" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={50} />
-                      <Tooltip {...tooltipStyle} />
-                      <Bar dataKey="count" name="Conexões" radius={[0, 6, 6, 0]}>
-                        {geoBarData.map((_, index) => (
-                          <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} opacity={0.8} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </ChartCard>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                {/* Countries table */}
-                <ChartCard title={m.geo.countries}>
-                  {!geo || geo.countries.length === 0 ? (
-                    <p className="text-sm text-slate-600">{m.geo.empty}</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {geo.countries.map((c, i) => {
-                        const max = geo.countries[0].count;
-                        const pct = max > 0 ? (c.count / max) * 100 : 0;
-                        return (
-                          <div key={c.country} className="flex items-center gap-3">
-                            <span className="w-8 text-right text-xs text-slate-600">{i + 1}</span>
-                            <span className="w-10 text-xs font-semibold text-slate-300">{c.country}</span>
-                            <div className="flex-1">
-                              <div className="h-2 overflow-hidden rounded-full bg-white/[0.04]">
-                                <div
-                                  className="h-full rounded-full bg-indigo-500/60"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            </div>
-                            <span className="w-10 text-right text-xs tabular-nums text-slate-400">{c.count}</span>
-                          </div>
-                        );
-                      })}
+          {/* ─── Instances ─── */}
+          {instances && instances.instances.length > 0 && (
+            <SectionCard title="Instâncias">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {instances.instances.map((inst) => {
+                  const ago = Date.now() - new Date(inst.last_seen + 'Z').getTime();
+                  const isOnline = ago < 10 * 60_000;
+                  const uptimeH = Math.floor(inst.uptime_seconds / 3600);
+                  const uptimeM = Math.floor((inst.uptime_seconds % 3600) / 60);
+                  const uptimeStr = uptimeH > 0 ? `${uptimeH}h ${uptimeM}m` : `${uptimeM}m`;
+                  return (
+                    <div key={inst.instance_id} className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] text-indigo-300">{inst.instance_id.slice(0, 8)}...</span>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                          isOnline ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-500/15 text-slate-500'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                          {isOnline ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500">
+                        <span>{inst.platform}/{inst.arch}</span>
+                        <span className="text-right">Uptime: {uptimeStr}</span>
+                        <span>Salas: <span className="text-slate-300">{inst.active_rooms}</span></span>
+                        <span className="text-right">Sessões: <span className="text-slate-300">{inst.total_sessions}</span></span>
+                      </div>
                     </div>
-                  )}
-                </ChartCard>
-
-                {/* Cities table */}
-                <ChartCard title={m.geo.cities}>
-                  {!geo || geo.cities.length === 0 ? (
-                    <p className="text-sm text-slate-600">{m.geo.empty}</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {geo.cities.slice(0, 15).map((c, i) => {
-                        const max = geo.cities[0].count;
-                        const pct = max > 0 ? (c.count / max) * 100 : 0;
-                        return (
-                          <div key={`${c.city}-${c.country}`} className="flex items-center gap-3">
-                            <span className="w-8 text-right text-xs text-slate-600">{i + 1}</span>
-                            <span className="w-28 truncate text-xs text-slate-300">{c.city}</span>
-                            <span className="w-8 text-[10px] text-slate-600">{c.country}</span>
-                            <div className="flex-1">
-                              <div className="h-2 overflow-hidden rounded-full bg-white/[0.04]">
-                                <div
-                                  className="h-full rounded-full bg-cyan-500/60"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            </div>
-                            <span className="w-10 text-right text-xs tabular-nums text-slate-400">{c.count}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </ChartCard>
+                  );
+                })}
               </div>
-            </>
-          )}
-
-          {/* ===================== FAMILY TAB ===================== */}
-          {tab === 'family' && (
-            <>
-              {/* Summary cards */}
-              {instances && instances.instances.length > 0 && (() => {
-                const all = instances.instances;
-                const now = Date.now();
-                const online = all.filter((i) => (now - new Date(i.last_seen + 'Z').getTime()) < 10 * 60_000);
-                const totalSess = all.reduce((s, i) => s + i.total_sessions, 0);
-                const totalConn = all.reduce((s, i) => s + i.total_connections, 0);
-                return (
-                  <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatCard label="Instâncias conhecidas" value={all.length} accent="bg-violet-500" />
-                    <StatCard label="Online agora" value={online.length} sub="heartbeat < 10min" accent="bg-emerald-500" />
-                    <StatCard label="Sessões (toda família)" value={totalSess} accent="bg-indigo-500" />
-                    <StatCard label="Conexões (toda família)" value={totalConn} accent="bg-cyan-500" />
-                  </section>
-                );
-              })()}
-
-              <ChartCard title="Instâncias da Família">
-                {!instances || instances.instances.length === 0 ? (
-                  <p className="text-sm text-slate-600">Nenhuma instância registrada ainda. Instâncias enviam heartbeat a cada 5 minutos.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-white/[0.04] text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                          <th className="px-3 py-2">Status</th>
-                          <th className="px-3 py-2">Instance ID</th>
-                          <th className="px-3 py-2">Plataforma</th>
-                          <th className="px-3 py-2">Uptime</th>
-                          <th className="px-3 py-2">Salas</th>
-                          <th className="px-3 py-2">Sessões</th>
-                          <th className="px-3 py-2">Conexões</th>
-                          <th className="px-3 py-2">IPs</th>
-                          <th className="px-3 py-2">Primeiro visto</th>
-                          <th className="px-3 py-2">Último heartbeat</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {instances.instances.map((inst) => {
-                          const ago = Date.now() - new Date(inst.last_seen + 'Z').getTime();
-                          const isOnline = ago < 10 * 60_000;
-                          const uptimeH = Math.floor(inst.uptime_seconds / 3600);
-                          const uptimeM = Math.floor((inst.uptime_seconds % 3600) / 60);
-                          const uptimeStr = uptimeH > 0 ? `${uptimeH}h ${uptimeM}m` : `${uptimeM}m`;
-                          return (
-                            <tr key={inst.instance_id} className="border-b border-white/[0.02] transition hover:bg-white/[0.02]">
-                              <td className="px-3 py-2.5">
-                                <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                                  isOnline ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-500/15 text-slate-500'
-                                }`}>
-                                  <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-                                  {isOnline ? 'Online' : 'Offline'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2.5 font-mono text-[10px] text-indigo-300">{inst.instance_id.slice(0, 8)}...</td>
-                              <td className="px-3 py-2.5 text-[10px] text-slate-500">{inst.platform}/{inst.arch} {inst.node_version}</td>
-                              <td className="px-3 py-2.5 text-xs tabular-nums text-slate-400">{uptimeStr}</td>
-                              <td className="px-3 py-2.5 tabular-nums">{inst.active_rooms}</td>
-                              <td className="px-3 py-2.5 tabular-nums">{inst.total_sessions}</td>
-                              <td className="px-3 py-2.5 tabular-nums">{inst.total_connections}</td>
-                              <td className="px-3 py-2.5 tabular-nums">{inst.unique_ips}</td>
-                              <td className="px-3 py-2.5 text-[10px] text-slate-500">{new Date(inst.first_seen + 'Z').toLocaleDateString('pt-BR')}</td>
-                              <td className="px-3 py-2.5 text-[10px] text-slate-500">{new Date(inst.last_seen + 'Z').toLocaleString('pt-BR')}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </ChartCard>
-            </>
+            </SectionCard>
           )}
         </div>
       </main>

@@ -4,6 +4,7 @@ import type { FastifyPluginCallback } from 'fastify';
 import fastifySocketIO from 'fastify-socket.io';
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 
+import geoip from 'geoip-lite';
 import { AnalyticsStore } from './analytics.js';
 import { config } from './config.js';
 import { generateMasterToken, validateCredentials, verifyMasterToken } from './master-auth.js';
@@ -162,6 +163,19 @@ export async function createServer() {
     return socket.handshake.address ?? '';
   }
 
+  function socketHost(socket: AppSocket): string {
+    const host = socket.handshake.headers.host;
+    if (typeof host === 'string') return host.split(':')[0];
+    return '';
+  }
+
+  function mapRoleToPage(role: string, judgeRole?: string): string {
+    if (role === 'admin') return '/admin';
+    if (role === 'display') return '/display';
+    if (role === 'left' || role === 'center' || role === 'right') return `/ref/${role}`;
+    return '/';
+  }
+
   app.get('/health', async () => ({ status: 'ok' }));
 
   app.post('/rooms', async (request, reply) => {
@@ -284,7 +298,8 @@ export async function createServer() {
         sessionId,
         payload.role,
         isJudge(payload.role) ? payload.role : null,
-        socketIp(socket)
+        socketIp(socket),
+        socketHost(socket)
       );
       if (connId !== null) socket.data.connectionId = connId;
       telemetry.trackConnection(payload.roomId, payload.role, socketIp(socket));
@@ -473,9 +488,9 @@ export async function createServer() {
     return verifyMasterToken(auth.slice(7));
   }
 
-  app.get('/master/stats', async (request, reply) => {
+  app.get<{ Querystring: { period?: string } }>('/master/stats', async (request, reply) => {
     if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
-    return analyticsStore.getStats(roomManager.roomCount());
+    return analyticsStore.getStats(roomManager.roomCount(), request.query.period);
   });
 
   app.get<{ Querystring: { limit?: string; offset?: string } }>('/master/sessions', async (request, reply) => {
@@ -485,14 +500,19 @@ export async function createServer() {
     return { sessions: analyticsStore.getRecentSessions(limit, offset) };
   });
 
-  app.get('/master/geo', async (request, reply) => {
+  app.get<{ Querystring: { period?: string } }>('/master/geo', async (request, reply) => {
     if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
-    return analyticsStore.getGeoDistribution();
+    return analyticsStore.getGeoDistribution(request.query.period);
   });
 
-  app.get('/master/timeline', async (request, reply) => {
+  app.get<{ Querystring: { period?: string } }>('/master/geo-markers', async (request, reply) => {
     if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
-    return { timeline: analyticsStore.getTimeline() };
+    return { markers: analyticsStore.getGeoMarkers(request.query.period) };
+  });
+
+  app.get<{ Querystring: { period?: string } }>('/master/timeline', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { timeline: analyticsStore.getTimeline(request.query.period) };
   });
 
   app.get('/master/hourly', async (request, reply) => {
@@ -505,9 +525,9 @@ export async function createServer() {
     return { roles: analyticsStore.getRoleBreakdown() };
   });
 
-  app.get('/master/duration', async (request, reply) => {
+  app.get<{ Querystring: { period?: string } }>('/master/duration', async (request, reply) => {
     if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
-    return analyticsStore.getDurationStats();
+    return analyticsStore.getDurationStats(request.query.period);
   });
 
   app.get('/master/activity', async (request, reply) => {
@@ -556,6 +576,46 @@ export async function createServer() {
   app.get('/master/active', async (request, reply) => {
     if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
     return { rooms: roomManager.listRooms() };
+  });
+
+  app.get('/master/online', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    const visitors: Array<{
+      role: string;
+      roomId: string;
+      page: string;
+      host: string;
+      country: string;
+      city: string;
+      connectedAt: string;
+    }> = [];
+    for (const [, socket] of io.sockets.sockets) {
+      const data = socket.data as ClientData;
+      if (!data.roomId) continue;
+      const host = socketHost(socket as unknown as AppSocket);
+      const ip = socketIp(socket as unknown as AppSocket);
+      const geo = geoip.lookup(ip);
+      visitors.push({
+        role: data.role,
+        roomId: data.roomId,
+        page: mapRoleToPage(data.role, data.judgeRole),
+        host,
+        country: geo?.country ?? '',
+        city: geo?.city ?? '',
+        connectedAt: (socket as any).handshake?.time ?? new Date().toISOString()
+      });
+    }
+    return { visitors, count: visitors.length };
+  });
+
+  app.get<{ Querystring: { period?: string } }>('/master/pages', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { pages: analyticsStore.getPages(request.query.period) };
+  });
+
+  app.get<{ Querystring: { period?: string } }>('/master/hosts', async (request, reply) => {
+    if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
+    return { hosts: analyticsStore.getHosts(request.query.period) };
   });
 
   return app;

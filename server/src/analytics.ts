@@ -9,6 +9,8 @@ interface GeoInfo {
   country: string;
   region: string;
   city: string;
+  lat: number;
+  lng: number;
 }
 
 export interface SessionRow {
@@ -102,19 +104,35 @@ export class AnalyticsStore {
       CREATE INDEX IF NOT EXISTS idx_access_logs_timestamp ON access_logs(timestamp);
       CREATE INDEX IF NOT EXISTS idx_instances_last_seen ON instances(last_seen);
     `);
+
+    // Migrate: add host column
+    try {
+      this.db!.exec("ALTER TABLE connections ADD COLUMN host TEXT DEFAULT ''");
+    } catch {
+      // column already exists
+    }
+    // Migrate: add lat/lng columns
+    try {
+      this.db!.exec("ALTER TABLE connections ADD COLUMN lat REAL DEFAULT 0");
+    } catch { /* exists */ }
+    try {
+      this.db!.exec("ALTER TABLE connections ADD COLUMN lng REAL DEFAULT 0");
+    } catch { /* exists */ }
   }
 
   private resolveGeo(ip: string): GeoInfo {
     try {
       const result = geoip.lookup(ip);
-      if (!result) return { country: '', region: '', city: '' };
+      if (!result) return { country: '', region: '', city: '', lat: 0, lng: 0 };
       return {
         country: result.country ?? '',
         region: typeof result.region === 'string' ? result.region : '',
-        city: result.city ?? ''
+        city: result.city ?? '',
+        lat: result.ll?.[0] ?? 0,
+        lng: result.ll?.[1] ?? 0
       };
     } catch {
-      return { country: '', region: '', city: '' };
+      return { country: '', region: '', city: '', lat: 0, lng: 0 };
     }
   }
 
@@ -125,6 +143,24 @@ export class AnalyticsStore {
   /** One-way hash of IP — keeps uniqueness counting without storing PII */
   private hashIp(ip: string): string {
     return crypto.createHash('sha256').update(ip + 'referee-lights-salt').digest('hex').slice(0, 16);
+  }
+
+  private periodToSql(period?: string): string {
+    switch (period) {
+      case 'today': return "date(connected_at) = date('now')";
+      case '7d': return "connected_at >= datetime('now', '-7 days')";
+      case 'all': return '1=1';
+      default: return "connected_at >= datetime('now', '-30 days')";
+    }
+  }
+
+  private periodToSqlCreated(period?: string): string {
+    switch (period) {
+      case 'today': return "date(created_at) = date('now')";
+      case '7d': return "created_at >= datetime('now', '-7 days')";
+      case 'all': return '1=1';
+      default: return "created_at >= datetime('now', '-30 days')";
+    }
   }
 
   logSessionCreated(roomId: string, adminPin: string): number | null {
@@ -145,24 +181,17 @@ export class AnalyticsStore {
     sessionId: number | null,
     role: string,
     judgePosition: string | null,
-    ip: string
+    ip: string,
+    host = ''
   ): number | null {
     if (!this.db) return null;
     try {
       const geo = this.resolveGeo(ip);
       const ipHash = this.hashIp(ip);
       const stmt = this.db.prepare(
-        'INSERT INTO connections (session_id, role, judge_position, ip, country, region, city) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO connections (session_id, role, judge_position, ip, country, region, city, host, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       );
-      const result = stmt.run(
-        sessionId,
-        role,
-        judgePosition,
-        ipHash,
-        geo.country,
-        geo.region,
-        geo.city
-      );
+      const result = stmt.run(sessionId, role, judgePosition, ipHash, geo.country, geo.region, geo.city, host, geo.lat, geo.lng);
       return result.lastInsertRowid as number;
     } catch (err) {
       console.error('[analytics] logConnection error:', err);
@@ -208,15 +237,17 @@ export class AnalyticsStore {
     }
   }
 
-  getStats(activeRoomCount: number): StatsResult {
+  getStats(activeRoomCount: number, period?: string): StatsResult {
     if (!this.db) {
       return { totalSessions: 0, totalConnections: 0, uniqueIps: 0, activeRooms: activeRoomCount };
     }
     try {
-      const sessions = this.db.prepare('SELECT COUNT(*) as c FROM sessions').get() as { c: number };
-      const connections = this.db.prepare('SELECT COUNT(*) as c FROM connections').get() as { c: number };
+      const whereSess = this.periodToSqlCreated(period);
+      const whereConn = this.periodToSql(period);
+      const sessions = this.db.prepare(`SELECT COUNT(*) as c FROM sessions WHERE ${whereSess}`).get() as { c: number };
+      const connections = this.db.prepare(`SELECT COUNT(*) as c FROM connections WHERE ${whereConn}`).get() as { c: number };
       const ips = this.db
-        .prepare("SELECT COUNT(DISTINCT ip) as c FROM connections WHERE ip IS NOT NULL AND ip != ''")
+        .prepare(`SELECT COUNT(DISTINCT ip) as c FROM connections WHERE ip IS NOT NULL AND ip != '' AND ${whereConn}`)
         .get() as { c: number };
       return {
         totalSessions: sessions.c,
@@ -252,21 +283,20 @@ export class AnalyticsStore {
     }
   }
 
-  getTimeline(days = 30): Array<{ date: string; sessions: number; connections: number }> {
+  getTimeline(period?: string): Array<{ date: string; sessions: number; connections: number }> {
     if (!this.db) return [];
     try {
-      return this.db
-        .prepare(
-          `SELECT
-            date(created_at) as date,
-            COUNT(*) as sessions,
-            (SELECT COUNT(*) FROM connections WHERE date(connected_at) = date(s.created_at)) as connections
-          FROM sessions s
-          WHERE created_at >= datetime('now', ?)
-          GROUP BY date(created_at)
-          ORDER BY date ASC`
-        )
-        .all(`-${days} days`) as Array<{ date: string; sessions: number; connections: number }>;
+      const whereSess = this.periodToSqlCreated(period);
+      return this.db.prepare(
+        `SELECT
+          date(created_at) as date,
+          COUNT(*) as sessions,
+          (SELECT COUNT(*) FROM connections WHERE date(connected_at) = date(s.created_at)) as connections
+        FROM sessions s
+        WHERE ${whereSess}
+        GROUP BY date(created_at)
+        ORDER BY date ASC`
+      ).all() as Array<{ date: string; sessions: number; connections: number }>;
     } catch (err) {
       console.error('[analytics] getTimeline error:', err);
       return [];
@@ -308,18 +338,18 @@ export class AnalyticsStore {
     }
   }
 
-  getDurationStats(): { avgMinutes: number; maxMinutes: number; totalHours: number } {
+  getDurationStats(period?: string): { avgMinutes: number; maxMinutes: number; totalHours: number } {
     if (!this.db) return { avgMinutes: 0, maxMinutes: 0, totalHours: 0 };
     try {
-      const row = this.db
-        .prepare(
-          `SELECT
-            AVG((julianday(COALESCE(disconnected_at, datetime('now'))) - julianday(connected_at)) * 1440) as avg_min,
-            MAX((julianday(COALESCE(disconnected_at, datetime('now'))) - julianday(connected_at)) * 1440) as max_min,
-            SUM((julianday(COALESCE(disconnected_at, datetime('now'))) - julianday(connected_at)) * 24) as total_hours
-          FROM connections`
-        )
-        .get() as { avg_min: number | null; max_min: number | null; total_hours: number | null };
+      const where = this.periodToSql(period);
+      const row = this.db.prepare(
+        `SELECT
+          AVG((julianday(COALESCE(disconnected_at, datetime('now'))) - julianday(connected_at)) * 1440) as avg_min,
+          MAX((julianday(COALESCE(disconnected_at, datetime('now'))) - julianday(connected_at)) * 1440) as max_min,
+          SUM((julianday(COALESCE(disconnected_at, datetime('now'))) - julianday(connected_at)) * 24) as total_hours
+        FROM connections
+        WHERE ${where}`
+      ).get() as { avg_min: number | null; max_min: number | null; total_hours: number | null };
       return {
         avgMinutes: Math.round((row.avg_min ?? 0) * 10) / 10,
         maxMinutes: Math.round((row.max_min ?? 0) * 10) / 10,
@@ -434,25 +464,79 @@ export class AnalyticsStore {
     }
   }
 
-  getGeoDistribution(): GeoDistribution {
+  getGeoDistribution(period?: string): GeoDistribution {
     if (!this.db) return { countries: [], cities: [] };
     try {
-      const countries = this.db
-        .prepare(
-          "SELECT country, COUNT(*) as count FROM connections WHERE country != '' GROUP BY country ORDER BY count DESC LIMIT 30"
-        )
-        .all() as Array<{ country: string; count: number }>;
-
-      const cities = this.db
-        .prepare(
-          "SELECT city, country, COUNT(*) as count FROM connections WHERE city != '' GROUP BY city, country ORDER BY count DESC LIMIT 30"
-        )
-        .all() as Array<{ city: string; country: string; count: number }>;
-
+      const where = this.periodToSql(period);
+      const countries = this.db.prepare(
+        `SELECT country, COUNT(*) as count FROM connections WHERE country != '' AND ${where} GROUP BY country ORDER BY count DESC LIMIT 30`
+      ).all() as Array<{ country: string; count: number }>;
+      const cities = this.db.prepare(
+        `SELECT city, country, COUNT(*) as count FROM connections WHERE city != '' AND ${where} GROUP BY city, country ORDER BY count DESC LIMIT 30`
+      ).all() as Array<{ city: string; country: string; count: number }>;
       return { countries, cities };
     } catch (err) {
       console.error('[analytics] getGeoDistribution error:', err);
       return { countries: [], cities: [] };
+    }
+  }
+
+  getGeoMarkers(period?: string): Array<{ city: string; country: string; lat: number; lng: number; count: number }> {
+    if (!this.db) return [];
+    try {
+      const where = this.periodToSql(period);
+      return this.db.prepare(
+        `SELECT city, country, ROUND(AVG(lat), 4) as lat, ROUND(AVG(lng), 4) as lng, COUNT(*) as count
+        FROM connections
+        WHERE city != '' AND lat != 0 AND lng != 0 AND ${where}
+        GROUP BY city, country
+        ORDER BY count DESC
+        LIMIT 50`
+      ).all() as Array<{ city: string; country: string; lat: number; lng: number; count: number }>;
+    } catch (err) {
+      console.error('[analytics] getGeoMarkers error:', err);
+      return [];
+    }
+  }
+
+  getPages(period?: string): Array<{ page: string; count: number }> {
+    if (!this.db) return [];
+    try {
+      const where = this.periodToSql(period);
+      return this.db.prepare(
+        `SELECT
+          CASE
+            WHEN role IN ('left','center','right') THEN '/ref/' || role
+            WHEN role = 'admin' THEN '/admin'
+            WHEN role = 'display' THEN '/display'
+            ELSE '/'
+          END as page,
+          COUNT(*) as count
+        FROM connections
+        WHERE ${where}
+        GROUP BY page
+        ORDER BY count DESC`
+      ).all() as Array<{ page: string; count: number }>;
+    } catch (err) {
+      console.error('[analytics] getPages error:', err);
+      return [];
+    }
+  }
+
+  getHosts(period?: string): Array<{ host: string; count: number }> {
+    if (!this.db) return [];
+    try {
+      const where = this.periodToSql(period);
+      return this.db.prepare(
+        `SELECT host, COUNT(*) as count
+        FROM connections
+        WHERE host != '' AND ${where}
+        GROUP BY host
+        ORDER BY count DESC`
+      ).all() as Array<{ host: string; count: number }>;
+    } catch (err) {
+      console.error('[analytics] getHosts error:', err);
+      return [];
     }
   }
 }

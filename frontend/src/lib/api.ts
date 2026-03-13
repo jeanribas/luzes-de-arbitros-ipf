@@ -138,24 +138,24 @@ export function masterAuth(user: string, password: string) {
   return postJson<{ ok: true; token: string }>('/master/auth', { user, password });
 }
 
-export function getMasterStats() {
-  return getJsonAuth<MasterStats>('/master/stats');
+export function getMasterStats(period = '30d') {
+  return getJsonAuth<MasterStats>(`/master/stats?period=${period}`);
 }
 
 export function getMasterSessions(limit = 20, offset = 0) {
   return getJsonAuth<MasterSessionsResponse>(`/master/sessions?limit=${limit}&offset=${offset}`);
 }
 
-export function getMasterGeo() {
-  return getJsonAuth<MasterGeoResponse>('/master/geo');
+export function getMasterGeo(period = '30d') {
+  return getJsonAuth<MasterGeoResponse>(`/master/geo?period=${period}`);
 }
 
 export function getMasterActive() {
   return getJsonAuth<MasterActiveResponse>('/master/active');
 }
 
-export function getMasterTimeline() {
-  return getJsonAuth<MasterTimelineResponse>('/master/timeline');
+export function getMasterTimeline(period = '30d') {
+  return getJsonAuth<MasterTimelineResponse>(`/master/timeline?period=${period}`);
 }
 
 export function getMasterHourly() {
@@ -166,8 +166,8 @@ export function getMasterRoles() {
   return getJsonAuth<MasterRolesResponse>('/master/roles');
 }
 
-export function getMasterDuration() {
-  return getJsonAuth<MasterDurationResponse>('/master/duration');
+export function getMasterDuration(period = '30d') {
+  return getJsonAuth<MasterDurationResponse>(`/master/duration?period=${period}`);
 }
 
 export function getMasterActivity() {
@@ -180,6 +180,57 @@ export interface MasterClicksResponse {
 
 export function getMasterClicks() {
   return getJsonAuth<MasterClicksResponse>('/master/clicks');
+}
+
+export interface MasterOnlineVisitor {
+  role: string;
+  roomId: string;
+  page: string;
+  host: string;
+  country: string;
+  city: string;
+  connectedAt: string;
+}
+
+export interface MasterOnlineResponse {
+  visitors: MasterOnlineVisitor[];
+  count: number;
+}
+
+export interface MasterPagesResponse {
+  pages: Array<{ page: string; count: number }>;
+}
+
+export interface MasterHostsResponse {
+  hosts: Array<{ host: string; count: number }>;
+}
+
+export function getMasterOnline() {
+  return getJsonAuth<MasterOnlineResponse>('/master/online');
+}
+
+export function getMasterPages(period = '30d') {
+  return getJsonAuth<MasterPagesResponse>(`/master/pages?period=${period}`);
+}
+
+export function getMasterHosts(period = '30d') {
+  return getJsonAuth<MasterHostsResponse>(`/master/hosts?period=${period}`);
+}
+
+export interface GeoMarker {
+  city: string;
+  country: string;
+  lat: number;
+  lng: number;
+  count: number;
+}
+
+export interface MasterGeoMarkersResponse {
+  markers: GeoMarker[];
+}
+
+export function getMasterGeoMarkers(period = '30d') {
+  return getJsonAuth<MasterGeoMarkersResponse>(`/master/geo-markers?period=${period}`);
 }
 
 export function trackLinkClick(url: string) {
