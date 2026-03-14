@@ -1,17 +1,16 @@
 # Referee Lights 1.2
 
-![release](https://img.shields.io/github/v/tag/jeanribas/luzes-de-arbitros-ipf?label=release&sort=semver) ![visitors](https://visitor-badge.laobi.icu/badge?page_id=jeanribas.luzes-de-arbitros-ipf) ![license](https://img.shields.io/github/license/jeanribas/luzes-de-arbitros-ipf?cacheSeconds=300)
+![release](https://img.shields.io/github/v/tag/jeanribas/luzes-de-arbitros-ipf?label=release&sort=semver) ![visitors](https://visitor-badge.laobi.icu/badge?page_id=jeanribas.luzes-de-arbitros-ipf) ![license](https://img.shields.io/badge/license-Custom-blue)
 
 Português · [English](README.en.md) · [Español](README.es.md)
 
-Plataforma completa de luzes IPF para treinos e eventos menores. A versão **1.2** traz o dashboard analítico Master, telemetria com privacidade (LGPD/GDPR), escalonamento responsivo em todas as telas, suporte a PWA e a página de timer redesenhada. Seis interfaces web compartilham o mesmo estado em tempo real via Socket.IO e podem ser abertas em diferentes dispositivos:
+Plataforma completa de luzes IPF para treinos e eventos menores. A versão **1.2** traz escalonamento responsivo em todas as telas, suporte a PWA e a página de timer redesenhada. Cinco interfaces web compartilham o mesmo estado em tempo real via Socket.IO e podem ser abertas em diferentes dispositivos:
 
 - `/` – painel administrativo que cria/recupera sessões, gera QR Codes, controla o timer e acompanha o estado da plataforma
 - `/display` – display em tela cheia com as três luzes, cronômetro, intervalo e badges de cooldown
 - `/timer` – painel de controle autônomo para timer/intervalo com badges de cooldown
 - `/legend` – painel complementar para transmissão/mesa técnica com layout personalizável
 - `/ref/<judge>` – consoles individuais (left, center, right) com votos e cartões IPF
-- `/master` – dashboard analítico (requer MASTER_USER/MASTER_PASSWORD)
 
 > O painel administrativo continua acessível em `/admin` para compatibilidade com links antigos.
 
@@ -19,16 +18,13 @@ Cada sessão possui `roomId` e PIN. O painel gera automaticamente os QR Codes do
 
 ## Novidades da 1.2
 
-- **Master Dashboard (analytics)** – nova página `/master` com painel estilo Plausible: visitantes online em tempo real (polling 10 s), gráfico de sessões (Recharts), mapa-múndi interativo com marcadores por cidade (react-simple-maps), rastreamento de páginas e subdomínios, distribuição geográfica por país/cidade, monitoramento de salas ativas, rastreamento de instância ("Família") para deploys self-hosted, filtro por período (Hoje/7d/30d/Tudo) e proteção por credenciais MASTER_USER/MASTER_PASSWORD
-- **Telemetria privacy-first (LGPD/GDPR)** – IPs são hasheados com SHA-256 + salt (via única, jamais armazenados em texto); lookup GeoIP para país/cidade/coordenadas; opt-out via `TELEMETRY_ENABLED=false`; ID da instância persistido em `server/data/instance.id`
 - **Escalonamento responsivo de viewport** – todas as telas (admin, display, timer, referee) se ajustam automaticamente a qualquer tamanho de tela; sem controles manuais de zoom no display; painel admin escala proporcionalmente em janelas menores; consoles de árbitros funcionam em qualquer smartphone sem ajuste manual
 - **Suporte a PWA** – Web App Manifest com display standalone; apple-mobile-web-app-capable para iOS; salva a URL atual (com roomId/token) na tela inicial; ícone SVG com design de luzes de árbitros
 - **Timer standalone redesenhado** (`/timer`) – agora é um painel de controle completo (não apenas exibição); cards de Timer + Intervalo lado a lado (paisagem) ou empilhados (retrato); badges de cooldown mostrando tempo de troca; escalonamento responsivo
-- **Rastreamento de subdomínio** – o frontend envia `window.location.hostname` ao registrar no socket; o dashboard mostra qual subdomínio os usuários acessaram (ex.: arbitros.assist.com.br vs localhost)
 - **Footer auto-hide ao rolar** – componente FooterBadges oculta durante scroll, reaparecendo após 1,5 s
 - **Melhorias nos badges de cooldown** – largura fixa (tabular-nums), posicionados de forma absoluta acima das placas LIFTER/ATTEMPT (sem shift de layout), hook `useCooldownBadges` exportado para reuso
 - **Key Relay integrado ao servidor** – não é mais necessário um processo auxiliar separado. O painel admin possui um toggle "Ativar Key Relay" que inicia/para o key relay diretamente pelo navegador. Suporta qualquer combinação de teclas (F1–F12, Ctrl+tecla, Alt+tecla, etc.) configurável via modal que captura pressionamentos de tecla
-- **Licença customizada** (substituiu Apache 2.0) – uso não-comercial obrigatório, backlinks obrigatórios (GitHub + assist.com.br), telemetria deve permanecer ativa, copyleft
+
 
 ## Screenshots
 
@@ -38,6 +34,16 @@ Cada sessão possui `roomId` e PIN. O painel gera automaticamente os QR Codes do
 ![Visual de intervalo – etapa 1](screenshots/intervalo-1.jpg)
 ![Visual de intervalo – etapa 2](screenshots/intervalo-2.jpg)
 ![Tela chroma key](screenshots/cromakey.jpg)
+
+## Rodar no Windows (sem instalação)
+
+1. Baixe o arquivo `referee-lights-windows.zip` na página de [Releases](https://github.com/jeanribas/luzes-de-arbitros-ipf/releases)
+2. Clique com o botão direito → **Extrair tudo...**
+3. Abra a pasta extraída e dê duplo-clique em **Iniciar.cmd**
+4. O navegador abrirá automaticamente com a plataforma
+5. Compartilhe os QR Codes com os árbitros (mesma rede Wi-Fi)
+
+Para encerrar, pressione qualquer tecla na janela do Iniciar.
 
 ## Executando localmente
 
@@ -69,10 +75,7 @@ Aponte o navegador para `http://localhost:3000` nas rotas desejadas.
 | `PORT` | Porta do servidor | `3333` |
 | `CORS_ORIGIN` | Origens permitidas | — |
 | `LOG_LEVEL` | Nível de log (debug, info, warn, error) | `info` |
-| `MASTER_USER` | Usuário para acessar `/master` | — |
-| `MASTER_PASSWORD` | Senha para acessar `/master` | — |
 | `TELEMETRY_ENABLED` | Ativar/desativar telemetria | `true` |
-| `TELEMETRY_URL` | Endpoint central de telemetria | — |
 | `ANALYTICS_DB_PATH` | Caminho do banco analítico | `data/analytics.db` |
 
 ## Painel `/` (Admin)
@@ -118,6 +121,4 @@ O helper só precisa de Node 18+ instalado. As instruções completas (incluindo
 ## Deploy
 - **Server**: qualquer ambiente Node 18+ (ex.: EasyPanel). Basta `npm run build` e `npm start`.
 - **Frontend**: Vercel ou semelhante. Configure `NEXT_PUBLIC_WS_URL` e `NEXT_PUBLIC_API_URL` apontando para o domínio do servidor.
-  Se quiser forçar os QR Codes a usarem um domínio fixo, defina também `NEXT_PUBLIC_QR_ORIGIN` (ex.: `luzes-ipf.assist.com.br`).
-- **Docker**: monte um volume em `/app/data` para persistir o banco analítico (`analytics.db`) e o ID da instância (`instance.id`).
-- **Pacote Windows portátil**: ZIP pronto para uso com Node.js embutido. Basta extrair e dar duplo-clique em `Iniciar.cmd` — nenhuma instalação necessária. Utiliza Next.js standalone output para mínimo de arquivos. Disponível nos GitHub Releases. O script de build gera o pacote em `dist/windows-bundle`. Veja [docs/windows-package.md](docs/windows-package.md).
+- **Docker**: monte um volume em `/app/data` para persistir os dados.
