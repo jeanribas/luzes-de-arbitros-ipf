@@ -4,7 +4,7 @@
 
 [Português](README.md) · English · [Español](README.es.md)
 
-Complete IPF referee light stack for training sessions and small events. Version **1.2** brings responsive viewport scaling on every screen, PWA support, and a redesigned standalone timer page. Five web interfaces share the same real-time state via Socket.IO and can be opened on different devices:
+Complete referee light system for Powerlifting competitions following IPF rules. Version **1.2** brings responsive viewport scaling on every screen, PWA support, and a redesigned standalone timer page. Five web interfaces share the same real-time state via Socket.IO and can be opened on different devices:
 
 - `/` – admin panel that creates/resumes sessions, generates QR codes, controls the timer, and monitors the platform state
 - `/display` – full-screen display with the three lights, countdown timer, interval alerts, and cooldown badges

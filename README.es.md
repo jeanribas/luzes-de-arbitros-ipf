@@ -4,7 +4,7 @@
 
 [Português](README.md) · [English](README.en.md) · Español
 
-Plataforma completa de luces IPF para entrenamientos y eventos pequeños. La versión **1.2** incorpora escalado responsivo del viewport en todas las pantallas, soporte PWA y la página de temporizador rediseñada. Cinco interfaces web comparten el mismo estado en tiempo real mediante Socket.IO y pueden abrirse en distintos dispositivos:
+Plataforma completa de luces de arbitraje para competiciones de Powerlifting siguiendo las reglas de la IPF. La versión **1.2** incorpora escalado responsivo del viewport en todas las pantallas, soporte PWA y la página de temporizador rediseñada. Cinco interfaces web comparten el mismo estado en tiempo real mediante Socket.IO y pueden abrirse en distintos dispositivos:
 
 - `/` – panel administrativo que crea/recupera sesiones, genera códigos QR, controla el temporizador y sigue el estado de la plataforma
 - `/display` – pantalla a tamaño completo con las tres luces, cronómetro, intervalo y badges de cooldown
