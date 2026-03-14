@@ -258,3 +258,27 @@ export interface MasterInstancesResponse {
 export function getMasterInstances() {
   return getJsonAuth<MasterInstancesResponse>('/master/instances');
 }
+
+/* ─── Key Relay ─── */
+
+export interface KeyRelayStatus {
+  available: boolean;
+  active: boolean;
+  roomId: string | null;
+  keys: { valid: string; invalid: string };
+}
+
+export function getKeyRelayStatus() {
+  return getJson<KeyRelayStatus>('/key-relay/status');
+}
+
+export function startKeyRelay(roomId: string, validKey = 'F1', invalidKey = 'F10') {
+  return postJson<{ ok: true; roomId: string; keys: { valid: string; invalid: string } }>(
+    '/key-relay/start',
+    { roomId, validKey, invalidKey }
+  );
+}
+
+export function stopKeyRelay() {
+  return postJson<{ ok: true }>('/key-relay/stop');
+}

@@ -7,7 +7,7 @@ import TimerDisplay from '@/components/TimerDisplay';
 import IntervalCountdown from '@/components/IntervalCountdown';
 import IntervalFull from '@/components/IntervalFull';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
 import { Seo } from '@/components/Seo';
@@ -15,6 +15,21 @@ import { FooterBadges } from '@/components/FooterBadges';
 
 const BASE_SCALE = 0.9;
 const DEFAULT_ZOOM = 1;
+
+function useViewportScale(designWidth = 1920, designHeight = 1080) {
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const update = () => {
+      const sx = window.innerWidth / designWidth;
+      const sy = window.innerHeight / designHeight;
+      setScale(Math.min(sx, sy, 1));
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [designWidth, designHeight]);
+  return scale;
+}
 
 export default function DisplayPage() {
   const router = useRouter();
@@ -33,9 +48,9 @@ export default function DisplayPage() {
     adminPin
   });
 
+  const viewportScale = useViewportScale();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [keepAwake, setKeepAwake] = useState(() => {
     if (typeof window === 'undefined') return true;
     const stored = window.localStorage.getItem('displayKeepAwake');
@@ -63,30 +78,9 @@ export default function DisplayPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('displayZoom');
-    if (!stored) return;
-    const value = Number(stored);
-    if (!Number.isNaN(value) && value >= 0.5 && value <= 2) {
-      setZoom(Number(value.toFixed(2)));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('displayZoom', zoom.toString());
-  }, [zoom]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
     window.localStorage.setItem('displayKeepAwake', keepAwake ? 'true' : 'false');
   }, [keepAwake]);
 
-  const zoomLabel = useMemo(() => `${Math.round(zoom * BASE_SCALE * 100)}%`, [zoom]);
-
-  const zoomStyle = useMemo(() => ({
-    transform: `scale(${zoom * BASE_SCALE})`,
-    transformOrigin: 'top center'
-  }), [zoom]);
 
   const wakeActive = useWakeLock(keepAwake);
 
@@ -98,16 +92,6 @@ export default function DisplayPage() {
     document.cookie = `NEXT_LOCALE=${targetLocale}; path=/; max-age=31536000`;
     void router.replace({ pathname: router.pathname, query: router.query }, undefined, { locale: targetLocale });
   }, [router, state?.locale]);
-
-  const increaseZoom = useCallback(() => {
-    setZoom((prev) => Math.min(2, Number((prev + 0.1).toFixed(2))));
-  }, []);
-
-  const decreaseZoom = useCallback(() => {
-    setZoom((prev) => Math.max(0.6, Number((prev - 0.1).toFixed(2))));
-  }, []);
-
-  const resetZoom = useCallback(() => setZoom(DEFAULT_ZOOM), []);
 
   if (!roomId || !adminPin) {
     return <MissingDisplayCredentials messages={displayMessages} />;
@@ -126,7 +110,16 @@ export default function DisplayPage() {
         canonicalPath="/display"
         noIndex
       />
-      <main className="relative flex min-h-screen flex-col bg-black px-6 pt-12 pb-0 text-white">
+      <div className="h-screen w-screen overflow-hidden bg-black">
+      <main
+        className="relative flex h-screen flex-col bg-black px-6 pt-12 pb-16 text-white overflow-hidden"
+        style={viewportScale < 1 ? {
+          transformOrigin: 'top left',
+          transform: `scale(${viewportScale})`,
+          width: `${100 / viewportScale}%`,
+          height: `${100 / viewportScale}vh`,
+        } as CSSProperties : undefined}
+      >
         <div className="fixed bottom-6 left-6 z-30 flex flex-col items-start gap-3" ref={menuRef}>
           {menuOpen && (
             <div
@@ -152,35 +145,6 @@ export default function DisplayPage() {
                   >
                     {displayMessages.menu.goToAdmin}
                   </Link>
-                </section>
-
-                <section className="flex flex-col gap-3 border-t border-white/10 pt-4">
-                  <span className={`text-[10px] uppercase ${sectionLabelTrackingClass} text-slate-400`}>
-                    {displayMessages.zoom.label} ({zoomLabel})
-                  </span>
-                  <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-2">
-                    <button
-                      type="button"
-                      onClick={decreaseZoom}
-                      className="flex h-10 items-center justify-center rounded-lg bg-white/15 text-lg font-semibold text-white transition hover:bg-white/25"
-                    >
-                      −
-                    </button>
-                    <button
-                      type="button"
-                      onClick={resetZoom}
-                      className={`flex h-10 items-center justify-center rounded-lg bg-white/15 text-[10px] font-semibold uppercase ${buttonTrackingClass} text-white transition hover:bg-white/25`}
-                    >
-                      {displayMessages.zoom.reset}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={increaseZoom}
-                      className="flex h-10 items-center justify-center rounded-lg bg-white/15 text-lg font-semibold text-white transition hover:bg-white/25"
-                    >
-                      +
-                    </button>
-                  </div>
                 </section>
 
                 <section className="flex flex-col gap-3 border-t border-white/10 pt-4">
@@ -223,7 +187,7 @@ export default function DisplayPage() {
 
         {intervalVisible && state ? (
           <div className="flex flex-1 items-center justify-center">
-            <div style={zoomStyle}>
+            <div>
               <IntervalFull
                 intervalMs={state.intervalMs}
                 configuredMs={state.intervalConfiguredMs}
@@ -233,10 +197,10 @@ export default function DisplayPage() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-48">
+          <div className="flex flex-1 flex-col items-center justify-center gap-[8vh]">
             <div className="flex w-full justify-center">
               {state ? (
-                <div style={zoomStyle}>
+                <div>
                   <DecisionLights
                     state={state}
                     showLightPlaceholders={false}
@@ -249,7 +213,7 @@ export default function DisplayPage() {
                 </p>
               )}
             </div>
-            <div className="flex flex-col items-center gap-10" style={zoomStyle}>
+            <div className="flex flex-col items-center gap-10">
               {state && (state.intervalConfiguredMs > 0 || state.intervalMs > 0) && state.intervalVisible && (
                 <IntervalCountdown
                   intervalMs={state.intervalMs}
@@ -271,6 +235,7 @@ export default function DisplayPage() {
           <FooterBadges />
         </div>
       </main>
+      </div>
       {error && <StatusBanner message={error} errors={commonMessages.errors} />}
     </>
   );

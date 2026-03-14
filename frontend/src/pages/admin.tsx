@@ -8,7 +8,7 @@ import type { ChangeEvent, FormEvent, MouseEvent } from 'react';
 import { DecisionLights } from '@/components/DecisionLights';
 import TimerDisplay from '@/components/TimerDisplay';
 import { useRoomSocket } from '@/hooks/useRoomSocket';
-import { createRoom, accessRoom, refreshRefereeTokens, type JoinQrCodesResponse } from '@/lib/api';
+import { createRoom, accessRoom, refreshRefereeTokens, getKeyRelayStatus, startKeyRelay, stopKeyRelay, type JoinQrCodesResponse, type KeyRelayStatus } from '@/lib/api';
 import { FooterBadges } from '@/components/FooterBadges';
 import type { Judge } from '@/types/state';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
@@ -35,9 +35,25 @@ interface QrTarget {
   href: string;
 }
 
+function useViewportScale(designWidth = 1920, designHeight = 1280) {
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const update = () => {
+      const sx = window.innerWidth / designWidth;
+      const sy = window.innerHeight / designHeight;
+      setScale(Math.min(sx, sy, 1)); // never zoom above 1
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [designWidth, designHeight]);
+  return scale;
+}
+
 export default function AdminPage({ networkIps }: AdminPageProps) {
   const router = useRouter();
   const locale = typeof router.locale === 'string' ? router.locale : undefined;
+  const viewportScale = useViewportScale();
   const messages = useMemo(() => getMessages(locale), [locale]);
   const adminMessages = messages.admin;
   const commonMessages = messages.common;
@@ -69,6 +85,12 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
   const [tokenRefreshing, setTokenRefreshing] = useState(false);
   const lastAttemptRef = useRef<string | null>(null);
 
+  const [keyRelayStatus, setKeyRelayStatus] = useState<KeyRelayStatus | null>(null);
+  const [krValidKey, setKrValidKey] = useState('F1');
+  const [krInvalidKey, setKrInvalidKey] = useState('F10');
+  const [krConfigOpen, setKrConfigOpen] = useState(false);
+  const [krCapturing, setKrCapturing] = useState<'valid' | 'invalid' | null>(null);
+
   const [customMinutes, setCustomMinutes] = useState(1);
   const [intervalHours, setIntervalHours] = useState(0);
   const [intervalMinutes, setIntervalMinutes] = useState(10);
@@ -81,6 +103,37 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
 
   const credentialsReady = Boolean(router.isReady && roomId && adminPin);
   const roomReady = Boolean(roomAccess && roomAccess.roomId === roomId);
+
+  // Poll key-relay status
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const s = await getKeyRelayStatus();
+        if (!cancelled) setKeyRelayStatus(s);
+      } catch {
+        if (!cancelled) setKeyRelayStatus(null);
+      }
+    };
+    void poll();
+    const id = setInterval(() => void poll(), 5000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const handleKeyRelayToggle = useCallback(async () => {
+    if (!roomId) return;
+    try {
+      if (keyRelayStatus?.active) {
+        await stopKeyRelay();
+      } else {
+        await startKeyRelay(roomId, krValidKey, krInvalidKey);
+      }
+      const s = await getKeyRelayStatus();
+      setKeyRelayStatus(s);
+    } catch (err) {
+      console.error('Key relay toggle error:', err);
+    }
+  }, [keyRelayStatus, roomId, krValidKey, krInvalidKey]);
 
   useEffect(() => {
     if (!credentialsReady) {
@@ -380,7 +433,16 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
   return (
     <>
       {pageHead}
-      <main className="flex min-h-screen flex-col gap-10 bg-slate-950 px-10 py-10 text-slate-100">
+      <div className="h-screen w-screen overflow-hidden bg-slate-950">
+      <main
+        className="flex h-screen flex-col gap-6 bg-slate-950 px-10 py-6 text-slate-100 overflow-hidden"
+        style={viewportScale < 1 ? {
+          transformOrigin: 'top left',
+          transform: `scale(${viewportScale})`,
+          width: `${100 / viewportScale}%`,
+          height: `${100 / viewportScale}vh`,
+        } : undefined}
+      >
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-semibold uppercase tracking-[0.45em]">
@@ -422,8 +484,8 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
           </div>
         </header>
 
-        <section className="grid w-full gap-6 md:grid-cols-[320px_1fr]">
-          <aside className="flex flex-col gap-6 rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl">
+        <section className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-[320px_1fr]">
+          <aside className="flex flex-col gap-6 overflow-y-auto rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700">
             <div className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-[#0F141F] p-5">
               <h3 className={`text-xs font-semibold uppercase ${cardHeadingTracking} text-slate-300`}>
                 {adminMessages.timer.title}
@@ -567,9 +629,40 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
               </p>
             </div>
 
+            {status === 'connected' && roomId && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-[#0F141F] p-5">
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-xs font-semibold uppercase ${cardHeadingTracking} text-slate-300`}>
+                    Key Relay
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setKrConfigOpen(true)}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-300 transition"
+                    >
+                      {krValidKey}/{krInvalidKey}
+                    </button>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                      keyRelayStatus?.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-500/15 text-slate-500'
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${keyRelayStatus?.active ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                      {keyRelayStatus?.active ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  className={`${controlButtonBase} ${keyRelayStatus?.active ? 'bg-red-500/80 text-white hover:bg-red-500' : 'bg-emerald-500 text-slate-900 hover:bg-emerald-400/90'}`}
+                  onClick={handleKeyRelayToggle}
+                >
+                  {keyRelayStatus?.active ? 'Desativar' : 'Ativar Key Relay'}
+                </button>
+              </div>
+            )}
+
           </aside>
 
-          <section className="relative flex min-h-[60vh] flex-col items-center justify-center rounded-3xl border border-slate-800 bg-[#0B1019] p-6 shadow-2xl">
+          <section className="relative flex min-h-0 flex-col items-center justify-center rounded-3xl border border-slate-800 bg-[#0B1019] p-6 shadow-2xl">
             {state ? (
               <div className={`flex w-full flex-1 flex-col items-center justify-center ${previewLayout.gapClass}`}>
                 <div className="flex w-full justify-center">
@@ -623,8 +716,85 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
         </section>
         <FooterBadges />
       </main>
+      </div>
       {(roomErrorMessage || socketErrorMessage) && (
         <StatusBanner message={roomErrorMessage ?? socketErrorMessage ?? ''} />
+      )}
+      {krConfigOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setKrConfigOpen(false); setKrCapturing(null); }}>
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white">Configurar teclas</h2>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-400">Decisão válida (Good Lift)</span>
+                <button
+                  type="button"
+                  onClick={() => setKrCapturing('valid')}
+                  onKeyDown={(e) => {
+                    if (krCapturing !== 'valid') return;
+                    e.preventDefault();
+                    const parts: string[] = [];
+                    if (e.ctrlKey) parts.push('Ctrl');
+                    if (e.altKey) parts.push('Alt');
+                    if (e.shiftKey) parts.push('Shift');
+                    if (e.metaKey) parts.push('Meta');
+                    const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+                    if (!['Control','Alt','Shift','Meta'].includes(e.key)) {
+                      parts.push(k);
+                      setKrValidKey(parts.join('+'));
+                      setKrCapturing(null);
+                    }
+                  }}
+                  className={`rounded-lg border px-4 py-3 text-center text-lg font-bold transition ${
+                    krCapturing === 'valid'
+                      ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 animate-pulse'
+                      : 'border-slate-700 bg-slate-950 text-white hover:border-slate-500'
+                  }`}
+                >
+                  {krCapturing === 'valid' ? 'Pressione uma tecla...' : krValidKey}
+                </button>
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-red-400">Decisão inválida (No Lift)</span>
+                <button
+                  type="button"
+                  onClick={() => setKrCapturing('invalid')}
+                  onKeyDown={(e) => {
+                    if (krCapturing !== 'invalid') return;
+                    e.preventDefault();
+                    const parts: string[] = [];
+                    if (e.ctrlKey) parts.push('Ctrl');
+                    if (e.altKey) parts.push('Alt');
+                    if (e.shiftKey) parts.push('Shift');
+                    if (e.metaKey) parts.push('Meta');
+                    const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+                    if (!['Control','Alt','Shift','Meta'].includes(e.key)) {
+                      parts.push(k);
+                      setKrInvalidKey(parts.join('+'));
+                      setKrCapturing(null);
+                    }
+                  }}
+                  className={`rounded-lg border px-4 py-3 text-center text-lg font-bold transition ${
+                    krCapturing === 'invalid'
+                      ? 'border-red-400 bg-red-500/20 text-red-300 animate-pulse'
+                      : 'border-slate-700 bg-slate-950 text-white hover:border-slate-500'
+                  }`}
+                >
+                  {krCapturing === 'invalid' ? 'Pressione uma tecla...' : krInvalidKey}
+                </button>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setKrConfigOpen(false); setKrCapturing(null); }}
+                className="rounded-lg bg-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-slate-900 hover:bg-white transition"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {qrMenuOpen && (
         <QrMenu

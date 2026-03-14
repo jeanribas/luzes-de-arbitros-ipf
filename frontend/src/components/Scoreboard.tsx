@@ -28,7 +28,7 @@ export function Scoreboard({ mainMs, attemptNo, leftBadges, rightBadges }: Score
   const urgencyColor = isZero ? 'text-[#ff1f1f]' : urgency ? 'text-[#ff4d4f]' : 'text-white';
 
   return (
-    <div className="mx-auto grid w-full max-w-[min(88vw,1300px)] grid-cols-[max-content_auto_max-content] items-end gap-14">
+    <div className="mx-auto grid w-full max-w-[min(88vw,1300px)] grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] items-end gap-6">
       <CooldownColumn badges={leftBadges} ghost={!leftBadges.length} ariaHidden={leftBadges.length === 0} />
 
       <div className="flex flex-col items-center gap-6">
@@ -65,10 +65,10 @@ function CooldownColumn({
   const attemptActive = hasBadges || hasAttemptNumber;
 
   return (
-    <div className={`flex flex-col items-start gap-2 ${ghostClass}`} aria-hidden={ariaHidden ? 'true' : undefined}>
-      <div className="flex flex-col items-start gap-2 whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          {hasAttemptNumber && <AttemptMarker value={attemptNo!} className="ml-4" />}
+    <div className={`flex min-w-0 flex-col items-start gap-2 ${ghostClass}`} aria-hidden={ariaHidden ? 'true' : undefined}>
+      <div className="flex min-w-0 flex-col items-start gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          {hasAttemptNumber && <AttemptMarker value={attemptNo!} className="ml-4 shrink-0" />}
           <CooldownStack badges={badges} />
         </div>
         <AttemptPill dimmed={!attemptActive} />
@@ -122,7 +122,7 @@ function CooldownStack({ badges }: { badges: CooldownBadgeData[] }) {
   }
 
   return (
-    <div className="flex min-h-[3rem] min-w-[0] items-center gap-3 whitespace-nowrap">
+    <div className="flex min-h-[3rem] min-w-0 items-center gap-2 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]">
       {badges.map((badge) => (
         <CooldownBadge key={badge.id} value={badge.value} gradient={badge.gradient} />
       ))}

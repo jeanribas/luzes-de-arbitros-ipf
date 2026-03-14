@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getMessages } from '@/lib/i18n/messages';
 import { trackLinkClick } from '@/lib/api';
 
@@ -7,11 +7,29 @@ export function FooterBadges() {
   const router = useRouter();
   const locale = typeof router.locale === 'string' ? router.locale : undefined;
   const footer = useMemo(() => getMessages(locale).admin.footer, [locale]);
+  const [visible, setVisible] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setVisible(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setVisible(true), 1500);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleClick = (url: string) => () => { void trackLinkClick(url); };
 
   return (
-    <div className="flex w-full flex-col items-center gap-1.5 py-3 text-center">
+    <div
+      className="flex w-full flex-col items-center gap-1.5 py-3 text-center transition-opacity duration-300"
+      style={{ opacity: visible ? undefined : 0, pointerEvents: visible ? undefined : 'none' }}
+    >
       <a
         href="https://github.com/jeanribas/luzes-de-arbitros-ipf"
         target="_blank"

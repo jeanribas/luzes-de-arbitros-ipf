@@ -1,0 +1,16 @@
+{
+  "name": "Referee Lights",
+  "short_name": "Ref Lights",
+  "description": "Luzes de arbitragem para powerlifting IPF",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/images/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

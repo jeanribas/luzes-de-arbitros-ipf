@@ -35,6 +35,68 @@ function getCooldownGradient(seconds: number) {
   return `linear-gradient(135deg, ${start}, ${end})`;
 }
 
+export function useCooldownBadges(phase?: Phase) {
+  const [cooldownEntries, setCooldownEntries] = useState<CooldownEntry[]>([]);
+  const cooldownEntriesRef = useRef<CooldownEntry[]>([]);
+  const pendingRevealTimeoutsRef = useRef<number[]>([]);
+  const [now, setNow] = useState(() => Date.now());
+  const cooldownIdRef = useRef(0);
+  const previousPhaseRef = useRef<Phase | undefined>(phase);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (cooldownEntriesRef.current.length === 0) return;
+      const current = Date.now();
+      setNow(current);
+      setCooldownEntries((entries) => {
+        const filtered = entries.filter((e) => current - e.startedAt < LIFTER_COOLDOWN_SECONDS * 1000);
+        if (filtered.length === entries.length) {
+          cooldownEntriesRef.current = entries;
+          return entries;
+        }
+        cooldownEntriesRef.current = filtered;
+        return filtered;
+      });
+    }, COOLDOWN_TICK_MS);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const prev = previousPhaseRef.current;
+    previousPhaseRef.current = phase;
+    if (phase === 'revealed' && prev !== 'revealed') {
+      const timeoutId = window.setTimeout(() => {
+        const startedAt = Date.now();
+        setCooldownEntries((entries) => {
+          const updated = [...entries, { id: cooldownIdRef.current++, startedAt }];
+          cooldownEntriesRef.current = updated;
+          return updated;
+        });
+        pendingRevealTimeoutsRef.current = pendingRevealTimeoutsRef.current.filter((id) => id !== timeoutId);
+      }, LIGHTS_REVEAL_DELAY_MS);
+      pendingRevealTimeoutsRef.current.push(timeoutId);
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    return () => {
+      pendingRevealTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
+      pendingRevealTimeoutsRef.current = [];
+    };
+  }, []);
+
+  return useMemo(() => {
+    const current = now;
+    return cooldownEntries
+      .map((entry) => {
+        const elapsedSeconds = (current - entry.startedAt) / 1000;
+        const remaining = Math.max(0, LIFTER_COOLDOWN_SECONDS - elapsedSeconds);
+        return { id: entry.id, value: Math.ceil(remaining), gradient: getCooldownGradient(remaining) };
+      })
+      .filter((e) => e.value > 0);
+  }, [cooldownEntries, now]);
+}
+
 export function TimerDisplay(props: TimerDisplayProps) {
   const { remainingMs, running, variant = 'panel', hidden = false, phase, attemptNo } = props;
 
@@ -216,15 +278,15 @@ export default TimerDisplay;
 
 function CooldownBadge({ value, gradient, size = 'md' }: { value: number; gradient: string; size?: 'sm' | 'md' }) {
   const height = size === 'sm' ? 'h-[2.6rem]' : 'h-[4rem]';
-  const padding = size === 'sm' ? 'px-3' : 'px-5';
+  const width = size === 'sm' ? 'w-[3rem]' : 'w-[4.5rem]';
   const text = size === 'sm' ? 'text-base' : 'text-4xl';
 
   return (
     <span
-      className={`inline-flex skew-x-[-12deg] items-center justify-center rounded-md ${height} ${padding} ${text} font-black text-slate-900 shadow-[0_6px_0_rgba(0,0,0,0.3)]`}
+      className={`inline-flex skew-x-[-12deg] items-center justify-center rounded-md ${height} ${width} ${text} font-black text-slate-900 shadow-[0_6px_0_rgba(0,0,0,0.3)]`}
       style={{ backgroundImage: gradient }}
     >
-      <span className="skew-x-[12deg] leading-none">{value}</span>
+      <span className="skew-x-[12deg] leading-none tabular-nums">{value}</span>
     </span>
   );
 }
@@ -267,7 +329,7 @@ function CooldownStack({ badges }: { badges: Array<{ id: number; value: number; 
   }
 
   return (
-    <div className="flex min-h-[3rem] min-w-[0] items-center gap-3 whitespace-nowrap">
+    <div className="flex min-h-[3rem] items-center gap-3 whitespace-nowrap">
       {badges.map((badge) => (
         <CooldownBadge key={badge.id} value={badge.value} gradient={badge.gradient} />
       ))}
@@ -290,14 +352,12 @@ function AttemptColumn({
   const attemptActive = hasBadges || hasAttemptNumber;
 
   return (
-    <div className={`flex flex-col items-start gap-2 ${className}`} aria-hidden={ghost ? 'true' : undefined}>
-      <div className="flex flex-col items-start gap-2 whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          {hasAttemptNumber && <AttemptMarker value={attemptNo!} className="ml-4" />}
-          <CooldownStack badges={badges} />
-        </div>
-        <AttemptPlate dimmed={!attemptActive} />
+    <div className={`relative flex flex-col items-start gap-2 ${className}`} aria-hidden={ghost ? 'true' : undefined}>
+      <div className="absolute bottom-full left-0 mb-2 flex items-center gap-2 whitespace-nowrap">
+        {hasAttemptNumber && <AttemptMarker value={attemptNo!} />}
+        <CooldownStack badges={badges} />
       </div>
+      <AttemptPlate dimmed={!attemptActive} />
     </div>
   );
 }

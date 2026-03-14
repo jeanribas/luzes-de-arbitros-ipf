@@ -1,5 +1,6 @@
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 
 import { useRoomSocket } from '@/hooks/useRoomSocket';
 import { CardValue, Judge, VoteValue } from '@/types/state';
@@ -7,6 +8,20 @@ import { useWakeLock } from '@/hooks/useWakeLock';
 import { getMessages, type Messages } from '@/lib/i18n/messages';
 import { Seo } from '@/components/Seo';
 import { FooterBadges } from '@/components/FooterBadges';
+
+function useViewportScale(designWidth: number, designHeight: number) {
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const update = () => {
+      const sy = window.innerHeight / designHeight;
+      setScale(Math.min(sy, 1));
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [designWidth, designHeight]);
+  return scale;
+}
 
 const CARD_OPTIONS: Array<{ value: Exclude<CardValue, null>; color: string; glyph: string }> = [
   { value: 1, color: 'bg-red-500 text-white', glyph: '1' },
@@ -206,9 +221,17 @@ function CenterLayout(props: {
   } = props;
   const isValidActive = vote === 'white';
   const isPaused = !running;
+  const vScale = useViewportScale(375, 780);
+  const scaleStyle: CSSProperties | undefined = vScale < 1 ? {
+    transformOrigin: 'top left',
+    transform: `scale(${vScale})`,
+    width: `${100 / vScale}%`,
+    height: `${100 / vScale}vh`,
+  } : undefined;
 
   return (
-    <main className="flex min-h-screen flex-col gap-6 bg-slate-950 px-5 py-6 text-white">
+    <div className="h-screen w-screen overflow-hidden bg-slate-950">
+    <main className="flex h-screen flex-col gap-3 bg-slate-950 px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 text-white" style={scaleStyle}>
       <header className="flex flex-col items-center gap-1 text-xs uppercase tracking-[0.5em] text-slate-400">
         <span>{messages.center.title}</span>
         <span>
@@ -216,8 +239,8 @@ function CenterLayout(props: {
         </span>
       </header>
 
-      <section className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-[#1F232A] p-5 shadow-xl">
-        <div className="flex flex-col items-center gap-2">
+      <section className="flex flex-col items-center gap-3 rounded-3xl border border-white/10 bg-[#1F232A] p-4 shadow-xl">
+        <div className="flex flex-col items-center gap-1">
           <span className="text-xs uppercase tracking-[0.4em] text-slate-400">
             {messages.center.timeLabel}
           </span>
@@ -249,7 +272,7 @@ function CenterLayout(props: {
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section className="flex min-h-0 flex-1 flex-col gap-3">
         <button
           className={`w-full rounded-2xl bg-white py-9 text-2xl font-bold uppercase tracking-[0.3em] text-slate-900 shadow-xl transition ${
             isValidActive ? 'ring-4 ring-white/70' : 'opacity-80'
@@ -274,10 +297,11 @@ function CenterLayout(props: {
         })}
       </section>
 
-      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+      <div className="mt-2 opacity-60">
         <FooterBadges />
       </div>
     </main>
+    </div>
   );
 }
 
@@ -294,9 +318,17 @@ function SideLayout(props: {
   const { judge, status, vote, cards, onValid, onToggleCard, messages, commonMessages } = props;
   const isValidActive = vote === 'white';
   const sideLabel = judge === 'left' ? messages.side.leftTitle : messages.side.rightTitle;
+  const vScale = useViewportScale(375, 620);
+  const scaleStyle: CSSProperties | undefined = vScale < 1 ? {
+    transformOrigin: 'top left',
+    transform: `scale(${vScale})`,
+    width: `${100 / vScale}%`,
+    height: `${100 / vScale}vh`,
+  } : undefined;
 
   return (
-    <main className="flex min-h-screen flex-col gap-6 bg-slate-950 px-6 py-8 text-slate-100">
+    <div className="h-screen w-screen overflow-hidden bg-slate-950">
+    <main className="flex h-screen flex-col gap-4 bg-slate-950 px-6 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6 text-slate-100" style={scaleStyle}>
       <header className="flex flex-col items-center gap-1 text-center text-xs uppercase tracking-[0.4em] text-slate-400">
         <span>{sideLabel}</span>
         <span>
@@ -304,7 +336,7 @@ function SideLayout(props: {
         </span>
       </header>
 
-      <section className="flex flex-col gap-4">
+      <section className="flex min-h-0 flex-1 flex-col gap-3">
         <button
           className={`w-full rounded-2xl bg-white py-9 text-2xl font-bold uppercase tracking-[0.3em] text-slate-900 shadow-xl transition ${
             isValidActive ? 'ring-4 ring-white/70' : 'opacity-80'
@@ -330,10 +362,11 @@ function SideLayout(props: {
           );
         })}
       </section>
-      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+      <div className="mt-2 opacity-60">
         <FooterBadges />
       </div>
     </main>
+    </div>
   );
 }
 
@@ -345,7 +378,7 @@ function MissingRefCredentials({ judge, messages }: { judge: Judge; messages: Me
         {messages.missing.title}
       </h1>
       <p className="max-w-md text-sm text-slate-300">{description}</p>
-      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 opacity-60 hover:opacity-100 transition">
+      <div className="mt-2 opacity-60">
         <FooterBadges />
       </div>
     </main>

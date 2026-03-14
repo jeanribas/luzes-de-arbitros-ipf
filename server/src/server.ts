@@ -7,6 +7,7 @@ import type { Server as SocketIOServer, Socket } from 'socket.io';
 import geoip from 'geoip-lite';
 import { AnalyticsStore } from './analytics.js';
 import { config } from './config.js';
+import { KeyRelay } from './key-relay.js';
 import { generateMasterToken, validateCredentials, verifyMasterToken } from './master-auth.js';
 import { RoomManager } from './rooms.js';
 import { Telemetry } from './telemetry.js';
@@ -145,8 +146,12 @@ export async function createServer() {
 
   const io = app.io as AppSocketServer;
 
+  const keyRelay = new KeyRelay();
+  const keyRelayAvailable = config.KEY_RELAY_AVAILABLE;
+
   const roomManager = new RoomManager((roomId, snapshot) => {
     io.to(roomChannel(roomId)).emit('state:update', snapshot);
+    keyRelay.onStateUpdate(roomId, snapshot as { phase: string; votes: Record<string, string | null> });
   });
   const analyticsStore = new AnalyticsStore(config.ANALYTICS_DB_PATH);
   const telemetry = new Telemetry(config.TELEMETRY_URL, config.TELEMETRY_ENABLED);
@@ -620,6 +625,34 @@ export async function createServer() {
   app.get<{ Querystring: { period?: string } }>('/master/hosts', async (request, reply) => {
     if (!requireMaster(request)) { reply.code(401); return { error: 'unauthorized' }; }
     return { hosts: analyticsStore.getHosts(request.query.period) };
+  });
+
+  // --- Key Relay Endpoints ---
+
+  app.get('/key-relay/status', async () => {
+    return {
+      available: keyRelayAvailable,
+      active: keyRelay.isActive,
+      roomId: keyRelay.monitoredRoom,
+      keys: keyRelay.keys
+    };
+  });
+
+  app.post<{ Body: { roomId?: string; validKey?: string; invalidKey?: string } }>('/key-relay/start', async (request, reply) => {
+    const roomId = request.body?.roomId?.trim();
+    if (!roomId) { reply.code(400); return { error: 'missing_room_id' }; }
+    try {
+      keyRelay.start(roomId, request.body?.validKey, request.body?.invalidKey);
+      return { ok: true, roomId, keys: keyRelay.keys };
+    } catch (err: any) {
+      reply.code(400);
+      return { error: err?.message ?? 'invalid_config' };
+    }
+  });
+
+  app.post('/key-relay/stop', async () => {
+    keyRelay.stop();
+    return { ok: true };
   });
 
   return app;

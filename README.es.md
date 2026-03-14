@@ -1,36 +1,42 @@
-# Referee Lights 1.1
+# Referee Lights 1.2
 
 ![release](https://img.shields.io/github/v/tag/jeanribas/luzes-de-arbitros-ipf?label=release&sort=semver) ![visitors](https://visitor-badge.laobi.icu/badge?page_id=jeanribas.luzes-de-arbitros-ipf) ![license](https://img.shields.io/github/license/jeanribas/luzes-de-arbitros-ipf?cacheSeconds=300)
 
 [Português](README.md) · [English](README.en.md) · Español
 
-Plataforma completa de luces IPF para entrenamientos y eventos pequeños. La versión **1.1** consolida la gestión multi-sesión con PIN administrativo, códigos QR dinámicos y la pantalla de leyenda. Cuatro interfaces web comparten el mismo estado en tiempo real mediante Socket.IO y pueden abrirse en distintos dispositivos:
+Plataforma completa de luces IPF para entrenamientos y eventos pequeños. La versión **1.2** incorpora el dashboard analítico Master, telemetría con privacidad (LGPD/GDPR), escalado responsivo del viewport en todas las pantallas, soporte PWA y la página de temporizador rediseñada. Seis interfaces web comparten el mismo estado en tiempo real mediante Socket.IO y pueden abrirse en distintos dispositivos:
 
 - `/` – panel administrativo que crea/recupera sesiones, genera códigos QR, controla el temporizador y sigue el estado de la plataforma
-- `/display` – pantalla a tamaño completo con las tres luces, cronómetro y avisos de intervalo
-- `/legend` – tablero complementario para transmisión/mesa técnica con temporizador personalizable y controles de diseño
+- `/display` – pantalla a tamaño completo con las tres luces, cronómetro, intervalo y badges de cooldown
+- `/timer` – panel de control autónomo para temporizador/intervalo con badges de cooldown
+- `/legend` – tablero complementario para transmisión/mesa técnica con diseño personalizable
 - `/ref/<judge>` – consolas individuales (left, center, right) con votos y tarjetas IPF
+- `/master` – dashboard analítico (requiere MASTER_USER/MASTER_PASSWORD)
 
 > El panel administrativo sigue disponible en `/admin` para mantener la compatibilidad con enlaces antiguos.
 
 Cada sesión tiene `roomId` y PIN administrativo. El panel genera automáticamente los códigos QR de los árbitros y enlaces directos para la pantalla/leyenda, además de permitir rotar los tokens cuando sea necesario.
 
-> Recomendación: utilice la pantalla principal en monitores Full HD (1920x1080) para conservar el diseño y las proporciones originales.
+## Novedades de la 1.2
 
-## Novedades de la 1.1
-
-- Rediseño del panel admin con tarjetas descriptivas, modal de códigos QR con confirmación para rotar tokens y accesos rápidos (Display/Legend) para alternar entre vistas
-- Pantalla de leyenda conectada al backend con mensajes de estado y error, reutilizando los parámetros de la sesión
-- Ajustes de diseño en la pantalla principal: escala base menor (90 %), cronómetro central 15 % más grande y padding inferior reducido
-- Mejoras generales de UX (formularios, foco, copys) y correcciones en las solicitudes `POST /rooms`
+- **Master Dashboard (analytics)** – nueva página `/master` con panel estilo Plausible: visitantes en línea en tiempo real (polling 10 s), gráfico de sesiones (Recharts), mapa mundial interactivo con marcadores por ciudad (react-simple-maps), seguimiento de páginas y subdominios, distribución geográfica por país/ciudad, monitoreo de salas activas, seguimiento de instancia ("Familia") para despliegues self-hosted, filtro por período (Hoy/7d/30d/Todo) y protección por credenciales MASTER_USER/MASTER_PASSWORD
+- **Telemetría privacy-first (LGPD/GDPR)** – los IPs se hashean con SHA-256 + salt (vía única, jamás almacenados en texto); lookup GeoIP para país/ciudad/coordenadas; opt-out vía `TELEMETRY_ENABLED=false`; ID de instancia persistido en `server/data/instance.id`
+- **Escalado responsivo de viewport** – todas las pantallas (admin, display, timer, referee) se ajustan automáticamente a cualquier tamaño de pantalla; sin controles manuales de zoom en display; el panel admin escala proporcionalmente en ventanas menores; las consolas de árbitros funcionan en cualquier smartphone sin ajuste manual
+- **Soporte PWA** – Web App Manifest con display standalone; apple-mobile-web-app-capable para iOS; guarda la URL actual (con roomId/token) en la pantalla de inicio; ícono SVG con diseño de luces de árbitros
+- **Temporizador standalone rediseñado** (`/timer`) – ahora es un panel de control completo (no solo visualización); tarjetas de Timer + Intervalo lado a lado (paisaje) o apiladas (retrato); badges de cooldown mostrando tiempo de cambio; escalado responsivo
+- **Seguimiento de subdominio** – el frontend envía `window.location.hostname` al registrarse en el socket; el dashboard muestra qué subdominio accedieron los usuarios (ej.: arbitros.assist.com.br vs localhost)
+- **Footer auto-hide al desplazar** – el componente FooterBadges se oculta durante el scroll, reaparece después de 1,5 s
+- **Mejoras en los badges de cooldown** – ancho fijo (tabular-nums), posicionados de forma absoluta sobre las placas LIFTER/ATTEMPT (sin desplazamiento de layout), hook `useCooldownBadges` exportado para reutilización
+- **Key Relay integrado en el servidor** – ya no requiere un proceso auxiliar separado. El panel admin tiene un toggle "Ativar Key Relay" que inicia/detiene el key relay directamente desde el navegador. Soporta cualquier combinación de teclas (F1–F12, Ctrl+tecla, Alt+tecla, etc.) configurable mediante un modal que captura pulsaciones de teclas
+- **Licencia personalizada** (reemplazó Apache 2.0) – uso no comercial obligatorio, backlinks obligatorios (GitHub + assist.com.br), la telemetría debe permanecer activa, copyleft
 
 ## Capturas
 
-![Panel administrativo](screenshots/admin.jpg)  
-![Pantalla principal](screenshots/display.jpg)  
-![Pantalla con cronómetro](screenshots/display-2.jpg)  
-![Vista de intervalo – etapa 1](screenshots/intervalo-1.jpg)  
-![Vista de intervalo – etapa 2](screenshots/intervalo-2.jpg)  
+![Panel administrativo](screenshots/admin.jpg)
+![Pantalla principal](screenshots/display.jpg)
+![Pantalla con cronómetro](screenshots/display-2.jpg)
+![Vista de intervalo – etapa 1](screenshots/intervalo-1.jpg)
+![Vista de intervalo – etapa 2](screenshots/intervalo-2.jpg)
 ![Pantalla chroma key](screenshots/cromakey.jpg)
 
 ## Ejecución local
@@ -59,19 +65,33 @@ Ingrese a `http://localhost:3000` y navegue a la ruta deseada.
 
 > Ajuste `NEXT_PUBLIC_WS_URL` y `NEXT_PUBLIC_API_URL` en `.env.local` apuntando al origen público del servidor al desplegar en red.
 
+## Variables de entorno
+
+### Servidor (.env)
+| Variable | Descripción | Por defecto |
+|---|---|---|
+| `PORT` | Puerto del servidor | `3333` |
+| `CORS_ORIGIN` | Orígenes permitidos | — |
+| `LOG_LEVEL` | Nivel de log (debug, info, warn, error) | `info` |
+| `MASTER_USER` | Usuario para acceder a `/master` | — |
+| `MASTER_PASSWORD` | Contraseña para acceder a `/master` | — |
+| `TELEMETRY_ENABLED` | Activar/desactivar telemetría | `true` |
+| `TELEMETRY_URL` | Endpoint central de telemetría | — |
+| `ANALYTICS_DB_PATH` | Ruta de la base de datos analítica | `data/analytics.db` |
+
 ## Panel admin (`/`, también `/admin`)
 
 - **Crear nueva sesión** – genera `roomId`, PIN administrativo, tokens de árbitros y enlaces directos para display/legend
 - **Incorporarse a una sesión existente** – recupera la plataforma ingresando `roomId` + PIN
 - **Códigos QR** – muestra cada código de árbitro, con botón para rotar enlaces (pide confirmación antes de revocar los tokens actuales)
-- **Ready / Release / Clear** – controla el flujo estándar de luces y el temporizador de 60 s
+- **Ready / Release / Clear** – controla el flujo estándar de luces y el temporizador de 60 s
 - **Timer** – iniciar/detener/restablecer y ajuste rápido de minutos
 - **Intervalo** – programa el tiempo de cambio, alternando entre aviso rojo y panel principal
 
 ### Alertas visuales y sonoras
 
-- El contador de intervalo reproduce bips cortos en los últimos 10 s y un tono largo en cero. Tras 1 s el mensaje localizable sustituye la superposición roja.
-- El cronómetro principal también avisa en los últimos 10 s y emite tres bips rápidos en el segundo final.
+- El contador de intervalo reproduce bips cortos en los últimos 10 s y un tono largo en cero. Tras 1 s el mensaje localizable sustituye la superposición roja.
+- El cronómetro principal también avisa en los últimos 10 s y emite tres bips rápidos en el segundo final.
 - Por las reglas de los navegadores, los sonidos se habilitan únicamente después de una interacción del usuario (clic/tecla).
 
 ## Flujo sugerido
@@ -79,8 +99,8 @@ Ingrese a `http://localhost:3000` y navegue a la ruta deseada.
 1. Abra `/`, cree una sesión nueva y copie `roomId`/PIN.
 2. Cargue la pantalla en `/display?roomId=ABCD&pin=1234` y active el modo de pantalla completa.
 3. Comparta los códigos QR con los árbitros (cada uno abre su consola correspondiente).
-4. Para rotar al equipo, abra el modal de códigos QR y confirme “Generar nuevos enlaces”.
-5. Use el botón “Legend” para abrir la pantalla complementaria (`/legend?roomId=ABCD&pin=1234`).
+4. Para rotar al equipo, abra el modal de códigos QR y confirme "Generar nuevos enlaces".
+5. Use el botón "Legend" para abrir la pantalla complementaria (`/legend?roomId=ABCD&pin=1234`).
 6. Flujo típico: Ready → los árbitros votan → Release → se muestra la decisión → Clear.
 
 ## Personalización rápida
@@ -93,7 +113,9 @@ Ingrese a `http://localhost:3000` y navegue a la ruta deseada.
 
 ## Atajos externos (F1/F10)
 
-Para integrarse con tableros que esperan atajos de teclado, use el helper en `tools/key-relay`. Ejecute `start.command` (macOS), `start.bat`/`start.ps1` (Windows) o `start.sh` (Linux), pegue el enlace de la sesión (display/admin) y, opcionalmente, personalice las teclas. El helper se mantiene conectado por Socket.IO y envía:
+La forma recomendada es usar el toggle **"Ativar Key Relay"** en el panel admin. Inicia/detiene el key relay directamente desde el navegador, sin procesos auxiliares. Un modal permite capturar cualquier combinación de teclas (F1–F12, Ctrl+tecla, Alt+tecla, etc.) para personalizar los atajos.
+
+Para uso avanzado, el helper independiente en `tools/key-relay` sigue disponible. Ejecute `start.command` (macOS), `start.bat`/`start.ps1` (Windows) o `start.sh` (Linux), pegue el enlace de la sesión (display/admin) y, opcionalmente, personalice las teclas. El helper se mantiene conectado por Socket.IO y envía:
 
 - `F1` cuando se registran al menos dos luces blancas (válido)
 - `F10` cuando se registran al menos dos luces rojas (no válido)
@@ -104,4 +126,5 @@ El helper solo requiere Node 18+. Las instrucciones completas (incluyendo permis
 
 - **Servidor**: cualquier entorno Node 18+ (por ejemplo, EasyPanel). Ejecute `npm run build` y luego `npm start`.
 - **Frontend**: Vercel o similar. Configure `NEXT_PUBLIC_WS_URL` y `NEXT_PUBLIC_API_URL` con el dominio del servidor. Use `NEXT_PUBLIC_QR_ORIGIN` (ej.: `luzes-ipf.assist.com.br`) para forzar que los códigos QR compartan un origen público fijo.
-- **Paquete Windows**: un script genera un paquete portátil (backend + frontend + scripts) en `dist/windows-bundle`. Consulte [docs/windows-package.md](docs/windows-package.md).
+- **Docker**: monte un volumen en `/app/data` para persistir la base de datos analítica (`analytics.db`) y el ID de instancia (`instance.id`).
+- **Paquete Windows portátil**: ZIP listo para usar con Node.js incluido. Extraiga y haga doble clic en `Iniciar.cmd` — no requiere instalación. Utiliza Next.js standalone output para mínimo de archivos. Disponible en los GitHub Releases. El script de build genera el paquete en `dist/windows-bundle`. Consulte [docs/windows-package.md](docs/windows-package.md).

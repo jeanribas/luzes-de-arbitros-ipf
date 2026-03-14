@@ -8,5 +8,6 @@ export const config = {
   MASTER_PASSWORD: process.env.MASTER_PASSWORD ?? '',
   ANALYTICS_DB_PATH: process.env.ANALYTICS_DB_PATH ?? 'data/analytics.db',
   TELEMETRY_URL: process.env.TELEMETRY_URL ?? 'https://api-luzes-ipf.assist.com.br',
-  TELEMETRY_ENABLED: (process.env.TELEMETRY_ENABLED ?? 'true') === 'true'
+  TELEMETRY_ENABLED: (process.env.TELEMETRY_ENABLED ?? 'true') === 'true',
+  KEY_RELAY_AVAILABLE: (process.env.KEY_RELAY_AVAILABLE ?? 'false') === 'true'
 };
