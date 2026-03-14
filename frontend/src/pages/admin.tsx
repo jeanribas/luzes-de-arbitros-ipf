@@ -629,7 +629,7 @@ export default function AdminPage({ networkIps }: AdminPageProps) {
               </p>
             </div>
 
-            {status === 'connected' && roomId && (
+            {status === 'connected' && roomId && keyRelayStatus?.available && (
               <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-[#0F141F] p-5">
                 <div className="flex items-center justify-between">
                   <h3 className={`text-xs font-semibold uppercase ${cardHeadingTracking} text-slate-300`}>
