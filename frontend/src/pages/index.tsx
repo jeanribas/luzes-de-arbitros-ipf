@@ -185,9 +185,19 @@ export default function HomePage() {
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0, rootMargin: '0px 0px 50px 0px' }
     );
     document.querySelectorAll('.fade-in').forEach((el) => fadeObserver.observe(el));
+
+    // Fallback: reveal any fade-in elements already in viewport on load
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.fade-in').forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight + 50) {
+          el.classList.add('fade-in-visible');
+        }
+      });
+    });
 
     // Smooth parallax on scroll using transform
     const showcase = document.querySelector('.ss-showcase') as HTMLElement | null;
