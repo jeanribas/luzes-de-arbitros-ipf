@@ -31,7 +31,7 @@ O repositório já contém um `Dockerfile` na raiz focado no `server`.
 No EasyPanel:
 
 1. Fonte: **Dockerfile**
-2. Repositório: `jeanribas/luzes-de-arbitros-ipf`
+2. Repositório: `jeanribas/referee-lights`
 3. Branch: `main`
 4. Build path/context: `/`
 5. Dockerfile path: `Dockerfile`

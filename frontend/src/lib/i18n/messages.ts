@@ -203,6 +203,29 @@ type RefereeMessages = {
   };
 };
 
+type HomeMessages = {
+  metaTitle: string;
+  metaDescription: string;
+  ctaAdmin: string;
+  heroBadge: string;
+  heroTitle: string;
+  heroDesc: string;
+  heroCtaPrimary: string;
+  heroCtaSecondary: string;
+  whatIsTitle: string;
+  whatIsDesc: string;
+  stepsTitle: string;
+  stepsSubtitle: string;
+  steps: { title: string; desc: string; icon: string }[];
+  screensTitle: string;
+  screensSubtitle: string;
+  screens: { path: string; title: string; desc: string; href: string }[];
+  featuresTitle: string;
+  features: { icon: string; title: string; desc: string }[];
+  ctaTitle: string;
+  ctaDesc: string;
+};
+
 type MasterMessages = {
   metaDescription: string;
   login: {
@@ -251,8 +274,22 @@ type MasterMessages = {
   };
 };
 
+type WindowsMessages = {
+  metaTitle: string;
+  metaDescription: string;
+  title: string;
+  subtitle: string;
+  backHome: string;
+  steps: { title: string; desc: string }[];
+  requirements: { title: string; items: string[] };
+  troubleshooting: { title: string; items: { q: string; a: string }[] };
+  cta: string;
+};
+
 export type Messages = {
   common: CommonMessages;
+  home: HomeMessages;
+  windows: WindowsMessages;
   display: DisplayMessages;
   admin: AdminMessages;
   legend: LegendMessages;
@@ -293,6 +330,81 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'es-ES': 'Español'
     }
   },
+    home: {
+      metaTitle: 'Luzes de Arbitragem para Powerlifting IPF',
+      metaDescription: 'Sistema gratuito e open-source de luzes de arbitragem em tempo real para competições de Powerlifting IPF. Passo a passo completo para usar.',
+      ctaAdmin: 'Iniciar sessão',
+      heroBadge: 'Gratuito \u2022 Open Source \u2022 IPF',
+      heroTitle: 'Luzes de arbitragem para sua competição de Powerlifting',
+      heroDesc: 'Sistema completo que conecta árbitros, display, cronômetro e transmissão ao vivo em tempo real. Funciona em celular, tablet ou computador.',
+      heroCtaPrimary: 'Criar sessão agora',
+      heroCtaSecondary: 'Como funciona?',
+      whatIsTitle: 'O que é o Referee Lights?',
+      whatIsDesc: 'O Referee Lights é uma plataforma web que substitui os tradicionais painéis físicos de luzes de arbitragem. Cada árbitro usa seu próprio celular para votar (GOOD LIFT ou NO LIFT), e as decisões aparecem instantaneamente no display principal — ideal para competições presenciais ou transmitidas ao vivo.',
+      stepsTitle: 'Como usar em 5 passos',
+      stepsSubtitle: 'Do zero até sua competição funcionando. Sem instalar nada no celular dos árbitros.',
+      steps: [
+        { icon: '\u{1F4BB}', title: 'Abra o Painel Admin', desc: 'Clique em "Criar sessão agora" acima. O sistema gera automaticamente uma sala com PIN e QR Codes para os árbitros.' },
+        { icon: '\u{1F4F1}', title: 'Distribua os QR Codes', desc: 'Cada árbitro escaneia o QR Code correspondente (esquerdo, central, direito) com a câmera do celular. O console do árbitro abre direto no navegador — sem baixar aplicativo.' },
+        { icon: '\u{1F4FA}', title: 'Abra o Display', desc: 'No painel admin, clique em "Ir para Display" e coloque essa tela no telão ou projetor. As luzes dos árbitros aparecem aqui em tempo real.' },
+        { icon: '\u2705', title: 'Comece a competição', desc: 'Os árbitros votam pelo celular. As luzes (branca = válido, vermelha = inválido) aparecem no display quando todos votam. Use o timer e os intervalos pelo painel admin.' },
+        { icon: '\u{1F3A5}', title: 'Transmissão ao vivo (opcional)', desc: 'Abra a tela de Legenda/Chroma Key e capture no OBS Studio para sobrepor as luzes na sua live.' },
+      ],
+      screensTitle: 'Telas da plataforma',
+      screensSubtitle: 'Cada tela tem uma função específica. Clique para saber mais.',
+      screens: [
+        { path: '/admin', title: 'Painel Admin', desc: 'Criar sessões, QR codes, timer, intervalos', href: '/admin' },
+        { path: '/display', title: 'Display', desc: 'Luzes dos árbitros, timer e alertas sonoros', href: '/display' },
+        { path: '/ref/:posição', title: 'Console do Árbitro', desc: 'Botões de voto e cartões IPF no celular', href: '/ref' },
+        { path: '/legend', title: 'Legenda / Chroma Key', desc: 'Overlay para transmissão ao vivo', href: '/legend' },
+        { path: '/timer', title: 'Cronômetro', desc: 'Painel standalone de timer e intervalos', href: '/timer' },
+        { path: '/master', title: 'Master Dashboard', desc: 'Métricas de uso e analytics', href: '/master' },
+      ],
+      featuresTitle: 'Por que usar o Referee Lights?',
+      features: [
+        { icon: '\u26A1', title: 'Tempo real', desc: 'Sincronização instantânea entre todos os dispositivos. Sem delay.' },
+        { icon: '\u{1F4F1}', title: 'Sem instalar nada', desc: 'Funciona direto no navegador do celular. Os árbitros só escaneiam o QR Code.' },
+        { icon: '\u{1F3F4}', title: 'Cartões IPF', desc: 'Amarelo, vermelho e vermelho+amarelo conforme regras da IPF.' },
+        { icon: '\u{1F3A5}', title: 'Pronto para live', desc: 'Tela de chroma key para OBS Studio ou qualquer software de streaming.' },
+        { icon: '\u{1F512}', title: 'Sessões seguras', desc: 'PIN administrativo + tokens JWT rotativos para cada árbitro.' },
+        { icon: '\u{1F30E}', title: '3 idiomas', desc: 'Português, inglês e espanhol com detecção automática.' },
+      ],
+      ctaTitle: 'Pronto para começar?',
+      ctaDesc: 'Crie uma sessão em segundos. Gratuito, sem cadastro e sem instalar nada.',
+    },
+    windows: {
+      metaTitle: 'Instalar no Windows',
+      metaDescription: 'Guia passo a passo para baixar e rodar o Referee Lights no Windows. Sem instalar nada — basta extrair o ZIP e clicar.',
+      title: 'Como usar no Windows',
+      subtitle: 'Pacote portátil — extraia, clique e use. Sem instalar nada.',
+      backHome: 'Voltar para a Home',
+      steps: [
+        { title: 'Baixe o pacote', desc: 'Acesse a página de Releases no GitHub e baixe o arquivo referee-lights-windows.zip da versão mais recente.' },
+        { title: 'Extraia o ZIP', desc: 'Clique com o botão direito no arquivo baixado e escolha "Extrair tudo". Escolha uma pasta fácil de encontrar, como a Área de Trabalho ou C:\\referee-lights.' },
+        { title: 'Execute o Iniciar.cmd', desc: 'Abra a pasta extraída e dê dois cliques no arquivo Iniciar.cmd. Duas janelas de terminal vão abrir — uma para o servidor e outra para o frontend. Não feche essas janelas.' },
+        { title: 'Abra no navegador', desc: 'Após alguns segundos, abra o navegador e acesse http://localhost:3000. O painel admin vai aparecer. Crie uma sessão e distribua os QR Codes para os árbitros.' },
+        { title: 'Conecte os dispositivos', desc: 'Os árbitros devem estar na mesma rede WiFi. Eles acessam pelo IP da máquina (ex: http://192.168.1.100:3000) escaneando o QR Code.' },
+      ],
+      requirements: {
+        title: 'Requisitos',
+        items: [
+          'Windows 10 ou superior (64 bits)',
+          'Nenhuma instalação necessária — Node.js já vem incluso no pacote',
+          'Rede WiFi para conectar os dispositivos dos árbitros',
+          'Navegador moderno (Chrome, Edge, Firefox)',
+        ],
+      },
+      troubleshooting: {
+        title: 'Problemas comuns',
+        items: [
+          { q: 'O Windows bloqueou o Iniciar.cmd', a: 'Clique em "Mais informações" e depois em "Executar assim mesmo". É normal o Windows alertar sobre arquivos baixados da internet.' },
+          { q: 'A página não abre no navegador', a: 'Espere 10 a 15 segundos após executar o Iniciar.cmd. Se ainda não funcionar, verifique se as janelas de terminal não mostraram erros.' },
+          { q: 'Os árbitros não conseguem conectar', a: 'Verifique se todos estão na mesma rede WiFi. Use o IP da máquina (mostrado no painel admin) em vez de localhost.' },
+          { q: 'Erro de porta em uso', a: 'Feche outras aplicações que possam estar usando as portas 3000 ou 3333, ou edite o arquivo .env para mudar as portas.' },
+        ],
+      },
+      cta: 'Baixar para Windows',
+    },
     display: {
       metaDescription:
         'Display sincronizado para eventos IPF com luzes, cronômetro e alertas de intervalo conectados ao painel Referee Lights.',
@@ -523,6 +635,81 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'es-ES': 'Español'
     }
   },
+    home: {
+      metaTitle: 'Referee Lights for IPF Powerlifting',
+      metaDescription: 'Free, open-source, real-time referee light system for IPF Powerlifting competitions. Complete step-by-step guide.',
+      ctaAdmin: 'Start session',
+      heroBadge: 'Free \u2022 Open Source \u2022 IPF',
+      heroTitle: 'Referee lights for your Powerlifting competition',
+      heroDesc: 'A complete system connecting referees, display, timer, and live broadcasting in real time. Works on phones, tablets, or computers.',
+      heroCtaPrimary: 'Create session now',
+      heroCtaSecondary: 'How does it work?',
+      whatIsTitle: 'What is Referee Lights?',
+      whatIsDesc: 'Referee Lights is a web platform that replaces traditional physical referee light panels. Each referee uses their own phone to vote (GOOD LIFT or NO LIFT), and decisions appear instantly on the main display \u2014 perfect for in-person or live-streamed competitions.',
+      stepsTitle: 'How to use in 5 steps',
+      stepsSubtitle: 'From zero to a running competition. No app install needed on referee phones.',
+      steps: [
+        { icon: '\u{1F4BB}', title: 'Open the Admin Panel', desc: 'Click "Create session now" above. The system automatically generates a room with a PIN and QR Codes for the referees.' },
+        { icon: '\u{1F4F1}', title: 'Share the QR Codes', desc: 'Each referee scans their corresponding QR Code (left, center, right) with their phone camera. The referee console opens directly in the browser \u2014 no app download needed.' },
+        { icon: '\u{1F4FA}', title: 'Open the Display', desc: 'In the admin panel, click "Open Display" and put this screen on the projector or TV. Referee lights appear here in real time.' },
+        { icon: '\u2705', title: 'Start the competition', desc: 'Referees vote on their phones. The lights (white = valid, red = invalid) appear on the display once all votes are in. Use the timer and intervals from the admin panel.' },
+        { icon: '\u{1F3A5}', title: 'Live streaming (optional)', desc: 'Open the Legend/Chroma Key screen and capture it in OBS Studio to overlay referee decisions on your live stream.' },
+      ],
+      screensTitle: 'Platform screens',
+      screensSubtitle: 'Each screen has a specific role. Click to learn more.',
+      screens: [
+        { path: '/admin', title: 'Admin Panel', desc: 'Create sessions, QR codes, timer, intervals', href: '/admin' },
+        { path: '/display', title: 'Display', desc: 'Referee lights, timer, and audio alerts', href: '/display' },
+        { path: '/ref/:position', title: 'Referee Console', desc: 'Vote buttons and IPF cards on mobile', href: '/ref' },
+        { path: '/legend', title: 'Legend / Chroma Key', desc: 'Overlay for live broadcasting', href: '/legend' },
+        { path: '/timer', title: 'Timer', desc: 'Standalone timer and interval panel', href: '/timer' },
+        { path: '/master', title: 'Master Dashboard', desc: 'Usage metrics and analytics', href: '/master' },
+      ],
+      featuresTitle: 'Why use Referee Lights?',
+      features: [
+        { icon: '\u26A1', title: 'Real-time', desc: 'Instant synchronization across all devices. No delay.' },
+        { icon: '\u{1F4F1}', title: 'No installation', desc: 'Works directly in the phone browser. Referees just scan the QR Code.' },
+        { icon: '\u{1F3F4}', title: 'IPF Cards', desc: 'Yellow, red, and red+yellow per IPF rules.' },
+        { icon: '\u{1F3A5}', title: 'Stream-ready', desc: 'Chroma key screen for OBS Studio or any streaming software.' },
+        { icon: '\u{1F512}', title: 'Secure sessions', desc: 'Admin PIN + rotating JWT tokens for each referee.' },
+        { icon: '\u{1F30E}', title: '3 languages', desc: 'Portuguese, English, and Spanish with automatic detection.' },
+      ],
+      ctaTitle: 'Ready to get started?',
+      ctaDesc: 'Create a session in seconds. Free, no sign-up, no installation.',
+    },
+    windows: {
+      metaTitle: 'Install on Windows',
+      metaDescription: 'Step-by-step guide to download and run Referee Lights on Windows. No installation needed — just extract the ZIP and click.',
+      title: 'How to use on Windows',
+      subtitle: 'Portable package — extract, click, and use. No installation needed.',
+      backHome: 'Back to Home',
+      steps: [
+        { title: 'Download the package', desc: 'Go to the GitHub Releases page and download the referee-lights-windows.zip file from the latest version.' },
+        { title: 'Extract the ZIP', desc: 'Right-click the downloaded file and choose "Extract All". Pick an easy-to-find folder like the Desktop or C:\\referee-lights.' },
+        { title: 'Run Iniciar.cmd', desc: 'Open the extracted folder and double-click the Iniciar.cmd file. Two terminal windows will open — one for the server and one for the frontend. Do not close them.' },
+        { title: 'Open in the browser', desc: 'After a few seconds, open your browser and go to http://localhost:3000. The admin panel will appear. Create a session and share the QR Codes with the referees.' },
+        { title: 'Connect the devices', desc: 'Referees must be on the same WiFi network. They access via the machine\'s IP address (e.g., http://192.168.1.100:3000) by scanning the QR Code.' },
+      ],
+      requirements: {
+        title: 'Requirements',
+        items: [
+          'Windows 10 or later (64-bit)',
+          'No installation needed — Node.js is included in the package',
+          'WiFi network to connect referee devices',
+          'Modern browser (Chrome, Edge, Firefox)',
+        ],
+      },
+      troubleshooting: {
+        title: 'Common issues',
+        items: [
+          { q: 'Windows blocked Iniciar.cmd', a: 'Click "More info" then "Run anyway". This is normal for files downloaded from the internet.' },
+          { q: 'The page won\'t open in the browser', a: 'Wait 10 to 15 seconds after running Iniciar.cmd. If it still doesn\'t work, check the terminal windows for errors.' },
+          { q: 'Referees can\'t connect', a: 'Make sure everyone is on the same WiFi network. Use the machine\'s IP (shown in the admin panel) instead of localhost.' },
+          { q: 'Port already in use error', a: 'Close other applications using ports 3000 or 3333, or edit the .env file to change the ports.' },
+        ],
+      },
+      cta: 'Download for Windows',
+    },
     display: {
       metaDescription:
         'Synchronized IPF display with live lights, timers, and interval alerts managed from the Referee Lights admin panel.',
@@ -753,6 +940,81 @@ const MESSAGES: Record<AppLocale, Messages> = {
       'es-ES': 'Español'
     }
   },
+    home: {
+      metaTitle: 'Luces de Arbitraje para Powerlifting IPF',
+      metaDescription: 'Sistema gratuito y open-source de luces de arbitraje en tiempo real para competencias de Powerlifting IPF. Guía paso a paso completa.',
+      ctaAdmin: 'Iniciar sesión',
+      heroBadge: 'Gratis \u2022 Open Source \u2022 IPF',
+      heroTitle: 'Luces de arbitraje para tu competencia de Powerlifting',
+      heroDesc: 'Sistema completo que conecta jueces, display, cronómetro y transmisión en vivo en tiempo real. Funciona en celular, tablet o computadora.',
+      heroCtaPrimary: 'Crear sesión ahora',
+      heroCtaSecondary: '\u00bfC\u00f3mo funciona?',
+      whatIsTitle: '\u00bfQu\u00e9 es Referee Lights?',
+      whatIsDesc: 'Referee Lights es una plataforma web que reemplaza los paneles f\u00edsicos tradicionales de luces de arbitraje. Cada juez usa su propio celular para votar (GOOD LIFT o NO LIFT), y las decisiones aparecen instant\u00e1neamente en la pantalla principal \u2014 ideal para competencias presenciales o transmitidas en vivo.',
+      stepsTitle: 'C\u00f3mo usar en 5 pasos',
+      stepsSubtitle: 'Desde cero hasta tu competencia funcionando. Sin instalar nada en el celular de los jueces.',
+      steps: [
+        { icon: '\u{1F4BB}', title: 'Abre el Panel Admin', desc: 'Haz clic en "Crear sesi\u00f3n ahora" arriba. El sistema genera autom\u00e1ticamente una sala con PIN y c\u00f3digos QR para los jueces.' },
+        { icon: '\u{1F4F1}', title: 'Distribuye los c\u00f3digos QR', desc: 'Cada juez escanea el c\u00f3digo QR correspondiente (izquierdo, central, derecho) con la c\u00e1mara de su celular. La consola del juez se abre directo en el navegador \u2014 sin descargar aplicaci\u00f3n.' },
+        { icon: '\u{1F4FA}', title: 'Abre el Display', desc: 'En el panel admin, haz clic en "Abrir Display" y coloca esa pantalla en el proyector o televisor. Las luces de los jueces aparecen aqu\u00ed en tiempo real.' },
+        { icon: '\u2705', title: 'Comienza la competencia', desc: 'Los jueces votan desde su celular. Las luces (blanca = v\u00e1lido, roja = inv\u00e1lido) aparecen en el display cuando todos votan. Usa el timer y los intervalos desde el panel admin.' },
+        { icon: '\u{1F3A5}', title: 'Transmisi\u00f3n en vivo (opcional)', desc: 'Abre la pantalla de Leyenda/Chroma Key y cap\u00farala en OBS Studio para superponer las luces en tu transmisi\u00f3n.' },
+      ],
+      screensTitle: 'Pantallas de la plataforma',
+      screensSubtitle: 'Cada pantalla tiene una funci\u00f3n espec\u00edfica. Haz clic para saber m\u00e1s.',
+      screens: [
+        { path: '/admin', title: 'Panel Admin', desc: 'Crear sesiones, c\u00f3digos QR, timer, intervalos', href: '/admin' },
+        { path: '/display', title: 'Display', desc: 'Luces de los jueces, timer y alertas sonoras', href: '/display' },
+        { path: '/ref/:posici\u00f3n', title: 'Consola del Juez', desc: 'Botones de voto y tarjetas IPF en el celular', href: '/ref' },
+        { path: '/legend', title: 'Leyenda / Chroma Key', desc: 'Overlay para transmisi\u00f3n en vivo', href: '/legend' },
+        { path: '/timer', title: 'Cron\u00f3metro', desc: 'Panel standalone de timer e intervalos', href: '/timer' },
+        { path: '/master', title: 'Master Dashboard', desc: 'M\u00e9tricas de uso y analytics', href: '/master' },
+      ],
+      featuresTitle: '\u00bfPor qu\u00e9 usar Referee Lights?',
+      features: [
+        { icon: '\u26A1', title: 'Tiempo real', desc: 'Sincronizaci\u00f3n instant\u00e1nea entre todos los dispositivos. Sin delay.' },
+        { icon: '\u{1F4F1}', title: 'Sin instalar nada', desc: 'Funciona directo en el navegador del celular. Los jueces solo escanean el c\u00f3digo QR.' },
+        { icon: '\u{1F3F4}', title: 'Tarjetas IPF', desc: 'Amarilla, roja y roja+amarilla seg\u00fan reglas de la IPF.' },
+        { icon: '\u{1F3A5}', title: 'Listo para streaming', desc: 'Pantalla de chroma key para OBS Studio o cualquier software de streaming.' },
+        { icon: '\u{1F512}', title: 'Sesiones seguras', desc: 'PIN administrativo + tokens JWT rotativos para cada juez.' },
+        { icon: '\u{1F30E}', title: '3 idiomas', desc: 'Portugu\u00e9s, ingl\u00e9s y espa\u00f1ol con detecci\u00f3n autom\u00e1tica.' },
+      ],
+      ctaTitle: '\u00bfListo para empezar?',
+      ctaDesc: 'Crea una sesi\u00f3n en segundos. Gratis, sin registro y sin instalar nada.',
+    },
+    windows: {
+      metaTitle: 'Instalar en Windows',
+      metaDescription: 'Gu\u00eda paso a paso para descargar y ejecutar Referee Lights en Windows. Sin instalar nada.',
+      title: 'C\u00f3mo usar en Windows',
+      subtitle: 'Paquete portable \u2014 extrae, haz clic y usa. Sin instalar nada.',
+      backHome: 'Volver al Inicio',
+      steps: [
+        { title: 'Descarga el paquete', desc: 'Ve a la p\u00e1gina de Releases en GitHub y descarga el archivo referee-lights-windows.zip de la versi\u00f3n m\u00e1s reciente.' },
+        { title: 'Extrae el ZIP', desc: 'Haz clic derecho en el archivo descargado y elige "Extraer todo". Elige una carpeta f\u00e1cil de encontrar.' },
+        { title: 'Ejecuta Iniciar.cmd', desc: 'Abre la carpeta extra\u00edda y haz doble clic en Iniciar.cmd. Se abrir\u00e1n dos ventanas de terminal. No las cierres.' },
+        { title: 'Abre en el navegador', desc: 'Despu\u00e9s de unos segundos, abre el navegador y ve a http://localhost:3000. Crea una sesi\u00f3n y comparte los QR Codes.' },
+        { title: 'Conecta los dispositivos', desc: 'Los jueces deben estar en la misma red WiFi. Acceden por la IP de la m\u00e1quina escaneando el QR Code.' },
+      ],
+      requirements: {
+        title: 'Requisitos',
+        items: [
+          'Windows 10 o superior (64 bits)',
+          'No se necesita instalar nada \u2014 Node.js ya viene incluido',
+          'Red WiFi para conectar los dispositivos de los jueces',
+          'Navegador moderno (Chrome, Edge, Firefox)',
+        ],
+      },
+      troubleshooting: {
+        title: 'Problemas comunes',
+        items: [
+          { q: 'Windows bloque\u00f3 Iniciar.cmd', a: 'Haz clic en "M\u00e1s informaci\u00f3n" y luego en "Ejecutar de todos modos".' },
+          { q: 'La p\u00e1gina no abre', a: 'Espera 10-15 segundos. Revisa si las ventanas de terminal muestran errores.' },
+          { q: 'Los jueces no pueden conectarse', a: 'Verifica que todos est\u00e9n en la misma red WiFi. Usa la IP de la m\u00e1quina.' },
+          { q: 'Error de puerto en uso', a: 'Cierra otras aplicaciones en los puertos 3000 o 3333.' },
+        ],
+      },
+      cta: 'Descargar para Windows',
+    },
     display: {
       metaDescription:
         'Pantalla IPF sincronizada con luces, cronómetro y avisos de intervalo controlados desde el panel Referee Lights.',

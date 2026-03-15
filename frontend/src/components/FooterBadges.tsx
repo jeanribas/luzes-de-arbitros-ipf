@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getMessages } from '@/lib/i18n/messages';
 import { trackLinkClick } from '@/lib/api';
 
-export function FooterBadges() {
+export function FooterBadges({ alwaysVisible = false }: { alwaysVisible?: boolean }) {
   const router = useRouter();
   const locale = typeof router.locale === 'string' ? router.locale : undefined;
   const footer = useMemo(() => getMessages(locale).admin.footer, [locale]);
@@ -11,6 +11,7 @@ export function FooterBadges() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (alwaysVisible) return;
     const onScroll = () => {
       setVisible(false);
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -21,7 +22,7 @@ export function FooterBadges() {
       window.removeEventListener('scroll', onScroll);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, []);
+  }, [alwaysVisible]);
 
   const handleClick = (url: string) => () => { void trackLinkClick(url); };
 
@@ -31,10 +32,10 @@ export function FooterBadges() {
       style={{ opacity: visible ? undefined : 0, pointerEvents: visible ? undefined : 'none' }}
     >
       <a
-        href="https://github.com/jeanribas/luzes-de-arbitros-ipf"
+        href="https://github.com/jeanribas/referee-lights"
         target="_blank"
         rel="noopener noreferrer"
-        onClick={handleClick('https://github.com/jeanribas/luzes-de-arbitros-ipf')}
+        onClick={handleClick('https://github.com/jeanribas/referee-lights')}
         className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-slate-400 transition hover:text-slate-200"
       >
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className="shrink-0">

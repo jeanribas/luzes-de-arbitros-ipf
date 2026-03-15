@@ -1,6 +1,6 @@
 # Referee Lights 1.2
 
-![release](https://img.shields.io/github/v/tag/jeanribas/luzes-de-arbitros-ipf?label=release&sort=semver) ![visitors](https://visitor-badge.laobi.icu/badge?page_id=jeanribas.luzes-de-arbitros-ipf) ![license](https://img.shields.io/badge/license-Custom-blue)
+![release](https://img.shields.io/github/v/tag/jeanribas/referee-lights?label=release&sort=semver) ![visitors](https://visitor-badge.laobi.icu/badge?page_id=jeanribas.referee-lights) ![license](https://img.shields.io/badge/license-Custom-blue)
 
 [Português](README.md) · English · [Español](README.es.md)
 
@@ -37,7 +37,7 @@ Each session has a `roomId` and an admin PIN. The panel automatically generates 
 
 ## Run on Windows (no install)
 
-1. Download `referee-lights-windows.zip` from the [Releases](https://github.com/jeanribas/luzes-de-arbitros-ipf/releases) page
+1. Download `referee-lights-windows.zip` from the [Releases](https://github.com/jeanribas/referee-lights/releases) page
 2. Right-click → **Extract All...**
 3. Open the extracted folder and double-click **Iniciar.cmd**
 4. The browser will open automatically with the platform

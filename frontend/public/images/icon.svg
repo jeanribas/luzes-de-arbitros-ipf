@@ -1,6 +1,12 @@
 <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
   <rect width="512" height="512" rx="80" fill="#020617"/>
-  <circle cx="146" cy="256" r="60" fill="#ef4444" stroke="rgba(255,255,255,0.15)" stroke-width="4"/>
-  <circle cx="256" cy="256" r="60" fill="#ffffff" stroke="rgba(255,255,255,0.15)" stroke-width="4"/>
-  <circle cx="366" cy="256" r="60" fill="#ef4444" stroke="rgba(255,255,255,0.15)" stroke-width="4"/>
+  <!-- Left — white with check -->
+  <rect x="46" y="146" width="120" height="140" rx="16" fill="#f0f0f0"/>
+  <path d="M82 226l18 18 30-36" stroke="#0f172a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Center — red with X -->
+  <rect x="196" y="146" width="120" height="140" rx="16" fill="#ef4444"/>
+  <path d="M232 196l48 48M280 196l-48 48" stroke="#fff" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <!-- Right — white with check -->
+  <rect x="346" y="146" width="120" height="140" rx="16" fill="#f0f0f0"/>
+  <path d="M382 226l18 18 30-36" stroke="#0f172a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>
