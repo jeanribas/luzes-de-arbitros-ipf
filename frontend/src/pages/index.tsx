@@ -231,7 +231,7 @@ export default function HomePage() {
       fadeObserver.disconnect();
       window.removeEventListener('scroll', onScroll);
     };
-  }, []);
+  }, [locale]);
 
   return (
     <>
@@ -661,9 +661,9 @@ export default function HomePage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
                 gap: 16,
               }}
+              className="grid-3col"
             >
               {t.screens.map((s: { path: string; title: string; desc: string; href: string }, i: number) => (
                 <div key={s.path} className={`fade-in fade-in-d${Math.min(i + 1, 5)}`} style={{ height: '100%' }}>
@@ -756,6 +756,17 @@ export default function HomePage() {
       </div>
 
       <style jsx global>{`
+        /* ── Responsive grids ── */
+        .grid-3col {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+        }
+        @media (max-width: 768px) {
+          .grid-3col {
+            grid-template-columns: 1fr;
+          }
+        }
+
         /* ── Fade-in on scroll ── */
         .fade-in {
           opacity: 0;
