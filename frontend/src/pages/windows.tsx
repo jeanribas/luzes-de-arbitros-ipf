@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 
 import { FooterBadges } from '@/components/FooterBadges';
@@ -19,6 +20,28 @@ export default function WindowsPage() {
         description={t.metaDescription}
         canonicalPath="/windows"
       />
+      <Head>
+        <meta key="keywords" name="keywords" content="referee lights windows, download referee lights, powerlifting software windows, luzes arbitragem windows, install referee lights, portable referee lights, IPF powerlifting software" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'HowTo',
+              name: t.title,
+              description: t.metaDescription,
+              totalTime: 'PT5M',
+              tool: { '@type': 'HowToTool', name: 'Windows 10+ (64-bit)' },
+              step: t.steps.map((step, i) => ({
+                '@type': 'HowToStep',
+                position: i + 1,
+                name: step.title,
+                text: step.desc,
+              })),
+            }),
+          }}
+        />
+      </Head>
 
       <div
         style={{

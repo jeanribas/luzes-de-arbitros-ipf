@@ -1,12 +1,16 @@
 <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
   <rect width="512" height="512" rx="80" fill="#020617"/>
   <!-- Left — white with check -->
-  <rect x="46" y="146" width="120" height="140" rx="16" fill="#f0f0f0"/>
-  <path d="M82 226l18 18 30-36" stroke="#0f172a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="46" y="116" width="120" height="140" rx="20" fill="#f0f0f0"/>
+  <path d="M82 196l18 18 30-36" stroke="#0f172a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   <!-- Center — red with X -->
-  <rect x="196" y="146" width="120" height="140" rx="16" fill="#ef4444"/>
-  <path d="M232 196l48 48M280 196l-48 48" stroke="#fff" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <rect x="196" y="116" width="120" height="140" rx="20" fill="#ef4444"/>
+  <path d="M230 160l52 52M282 160l-52 52" stroke="#fff" stroke-width="14" stroke-linecap="round" fill="none"/>
   <!-- Right — white with check -->
-  <rect x="346" y="146" width="120" height="140" rx="16" fill="#f0f0f0"/>
-  <path d="M382 226l18 18 30-36" stroke="#0f172a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="346" y="116" width="120" height="140" rx="20" fill="#f0f0f0"/>
+  <path d="M382 196l18 18 30-36" stroke="#0f172a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- REFEREE LIGHTS text -->
+  <text x="256" y="340" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-weight="900" font-size="52" letter-spacing="2">
+    <tspan fill="#ffffff">REFEREE </tspan><tspan fill="#ef4444">LIGHTS</tspan>
+  </text>
 </svg>

@@ -1,9 +1,11 @@
-const DEFAULT_TITLE = 'Referee Lights · IPF Referee Lighting Platform';
+const DEFAULT_TITLE = 'Referee Lights · Real-Time Referee Light System for IPF Powerlifting';
 const DEFAULT_DESCRIPTION =
-  'Referee Lights sincroniza painel administrativo, display principal, legenda e consoles de árbitros para eventos IPF com PIN e QR Codes dinâmicos.';
+  'Free, open-source referee light system for IPF Powerlifting competitions. Real-time sync, penalty cards, timer, chroma key overlay, QR code access, PWA. Works on any device.';
 
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'https://luzes-ipf.assist.com.br';
+
+export const OG_IMAGE_URL = `${SITE_URL}/screenshots/display.jpg`;
 
 export const SEO_DEFAULTS = {
   siteName: 'Referee Lights',
@@ -12,4 +14,3 @@ export const SEO_DEFAULTS = {
   twitterHandle: '@refereelights',
   themeColor: '#0B1628'
 } as const;
-

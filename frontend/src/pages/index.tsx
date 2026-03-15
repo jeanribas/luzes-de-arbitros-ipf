@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 
 import { useEffect, useState } from 'react';
@@ -229,6 +230,97 @@ export default function HomePage() {
         description={t.metaDescription}
         canonicalPath="/"
       />
+      <Head>
+        <meta key="keywords" name="keywords" content="referee lights, powerlifting, IPF, referee light system, luzes de arbitragem, sistema de arbitragem, luces de arbitraje, jueces powerlifting, competition management, real-time, open source, PWA, chroma key, OBS, streaming, QR code, penalty cards, cartões IPF, tarjetas IPF, cronômetro, timer, good lift, no lift" />
+        <meta key="robots" name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'SoftwareApplication',
+              name: 'Referee Lights',
+              applicationCategory: 'SportsApplication',
+              operatingSystem: 'Web, Windows, Docker',
+              offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+              description: t.metaDescription,
+              softwareVersion: '1.2',
+              author: { '@type': 'Person', name: 'Jean Ribas' },
+              url: 'https://github.com/jeanribas/referee-lights',
+              downloadUrl: 'https://github.com/jeanribas/referee-lights/releases',
+              screenshot: [
+                'https://luzes-ipf.assist.com.br/screenshots/display.jpg',
+                'https://luzes-ipf.assist.com.br/screenshots/admin.jpg',
+                'https://luzes-ipf.assist.com.br/screenshots/display-2.jpg',
+                'https://luzes-ipf.assist.com.br/screenshots/cromakey.jpg',
+              ],
+              featureList: [
+                'Real-time referee light synchronization',
+                'IPF penalty cards (yellow, red, red+yellow)',
+                'Competition timer and interval management',
+                'Chroma key overlay for broadcasting',
+                'QR code referee access',
+                'Progressive Web App (PWA)',
+                'Multi-language support (PT, EN, ES)',
+                'Windows portable package',
+                'Docker deployment',
+              ],
+              inLanguage: ['pt-BR', 'en-US', 'es-ES'],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: [
+                {
+                  '@type': 'Question',
+                  name: 'What is Referee Lights?',
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: 'Referee Lights is a free, open-source, real-time referee light system for IPF Powerlifting competitions. It allows three referees to submit decisions via their phones, with instant synchronization across all connected devices.',
+                  },
+                },
+                {
+                  '@type': 'Question',
+                  name: 'Is Referee Lights free?',
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: 'Yes, Referee Lights is completely free and open-source. You can use it for any competition without cost.',
+                  },
+                },
+                {
+                  '@type': 'Question',
+                  name: 'Does it work on mobile phones?',
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: 'Yes. Referee Lights is a Progressive Web App (PWA) that works on any device with a web browser. Referees scan a QR code and vote directly from their phones — no app download needed.',
+                  },
+                },
+                {
+                  '@type': 'Question',
+                  name: 'Can I use it for live streaming?',
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: 'Yes. Referee Lights includes a chroma key screen that can be captured in OBS Studio or any streaming software, allowing you to overlay referee decisions on your live stream.',
+                  },
+                },
+                {
+                  '@type': 'Question',
+                  name: 'Does it follow IPF rules?',
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: 'Yes. The system implements the full IPF decision flow with 3 referees, penalty cards (yellow, red, red+yellow), and official timing.',
+                  },
+                },
+              ],
+            }),
+          }}
+        />
+      </Head>
 
       <div
         style={{
@@ -564,7 +656,7 @@ export default function HomePage() {
               }}
             >
               {t.screens.map((s: { path: string; title: string; desc: string; href: string }, i: number) => (
-                <div key={s.path} className={`fade-in fade-in-d${Math.min(i + 1, 5)}`}>
+                <div key={s.path} className={`fade-in fade-in-d${Math.min(i + 1, 5)}`} style={{ height: '100%' }}>
                   <ScreenLink path={s.path} title={s.title} description={s.desc} href={s.href} />
                 </div>
               ))}

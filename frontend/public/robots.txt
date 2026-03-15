@@ -4,7 +4,9 @@ Disallow: /admin
 Disallow: /display
 Disallow: /legend
 Disallow: /ref/
+Disallow: /timer
+Disallow: /master
 Allow: /
+Allow: /windows
 
 Sitemap: https://luzes-ipf.assist.com.br/sitemap.xml
-

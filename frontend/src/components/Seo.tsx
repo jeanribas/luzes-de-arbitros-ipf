@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useMemo } from 'react';
 
 import { APP_LOCALES, DEFAULT_LOCALE } from '@/lib/i18n/config';
-import { SEO_DEFAULTS, SITE_URL } from '@/lib/seo/config';
+import { SEO_DEFAULTS, SITE_URL, OG_IMAGE_URL } from '@/lib/seo/config';
 
 type SeoProps = {
   title?: string;
@@ -51,7 +51,16 @@ export function Seo({ title, description, canonicalPath, image, noIndex }: SeoPr
       <meta key="og:url" property="og:url" content={canonicalUrl} />
       <meta key="og:locale" property="og:locale" content={locale} />
       <meta key="og:type" property="og:type" content="website" />
-      <meta key="twitter:card" name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+      <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+      {!image ? (
+        <>
+          <meta key="og:image" property="og:image" content={OG_IMAGE_URL} />
+          <meta key="og:image:width" property="og:image:width" content="1600" />
+          <meta key="og:image:height" property="og:image:height" content="894" />
+          <meta key="og:image:alt" property="og:image:alt" content="Referee Lights — IPF Powerlifting referee light display" />
+          <meta key="twitter:image" name="twitter:image" content={OG_IMAGE_URL} />
+        </>
+      ) : null}
       <meta key="twitter:title" name="twitter:title" content={resolvedTitle} />
       <meta key="twitter:description" name="twitter:description" content={resolvedDescription} />
       {SEO_DEFAULTS.twitterHandle ? (
@@ -78,7 +87,7 @@ export function Seo({ title, description, canonicalPath, image, noIndex }: SeoPr
       {alternates.map((alt) => (
         <link key={`alt-${alt.hrefLang}`} rel="alternate" hrefLang={alt.hrefLang} href={alt.href} />
       ))}
-      <link key="alt-x-default" rel="alternate" hrefLang="x-default" href={`${SITE_URL}${normalizedPath}`} />
+      <link key="alt-x-default" rel="alternate" hrefLang="x-default" href={`${SITE_URL}${buildLocalizedPath('pt-BR', normalizedPath)}`} />
     </Head>
   );
 }
