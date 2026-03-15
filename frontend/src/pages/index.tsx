@@ -85,7 +85,7 @@ function ScreenLink({
         padding: '20px 24px',
         color: '#f1f5f9',
         display: 'block',
-        height: '100%',
+        minHeight: 120,
         transition: 'border-color 0.2s, transform 0.2s',
       }}
       onMouseEnter={(e) => {
@@ -665,10 +665,8 @@ export default function HomePage() {
               }}
               className="grid-3col"
             >
-              {t.screens.map((s: { path: string; title: string; desc: string; href: string }, i: number) => (
-                <div key={s.path} className={`fade-in fade-in-d${Math.min(i + 1, 5)}`} style={{ height: '100%' }}>
-                  <ScreenLink path={s.path} title={s.title} description={s.desc} href={s.href} />
-                </div>
+              {t.screens.map((s: { path: string; title: string; desc: string; href: string }) => (
+                <ScreenLink key={s.path} path={s.path} title={s.title} description={s.desc} href={s.href} />
               ))}
             </div>
           </div>
