@@ -1,5 +1,6 @@
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
+import { Analytics } from '@vercel/analytics/react';
 
 import { Seo } from '@/components/Seo';
 
@@ -20,6 +21,7 @@ export default function App({ Component, pageProps }: AppProps) {
       </Head>
       <Seo />
       <Component {...pageProps} />
+      <Analytics />
     </>
   );
 }
